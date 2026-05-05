@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBTI 人格测试结果</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="card" id="resultContent">
+        <!-- Header: dynamically colored -->
+        <div class="type-header" id="typeHeader">
+            <div class="type-badge" id="typeBadge">分析家</div>
+            <div class="type-code" id="typeCode">INTJ</div>
+            <div class="type-name" id="typeName">建筑师 · 分析家</div>
+            <div class="slogan" id="slogan">“深谋远虑的战略家，永远在构建更好的系统。”</div>
+        </div>
+
+        <div class="content">
+            <!-- Profile -->
+            <section class="section">
+                <h2 class="section-title">性格素描</h2>
+                <div class="profile-text" id="profileText"></div>
+            </section>
+
+            <!-- Dimension Scores -->
+            <section class="section">
+                <h2 class="section-title">维度得分</h2>
+                <div class="score-bars" id="scoreBars"></div>
+            </section>
+
+            <!-- Two columns: strengths & blind spots -->
+            <div class="two-col">
+                <section class="section">
+                    <h2 class="section-title">独特优势</h2>
+                    <ul class="strength-list" id="strengthList"></ul>
+                </section>
+                <section class="section">
+                    <h2 class="section-title">潜在盲点</h2>
+                    <ul class="blind-list" id="blindList"></ul>
+                </section>
+            </div>
+
+            <!-- Career suggestions -->
+            <section class="section">
+                <h2 class="section-title">适宜领域</h2>
+                <div class="career-pills" id="careerPills"></div>
+                <p style="margin-top: 0.9rem; font-size: 0.88rem; color: #4e627c;">※ 以上仅为常见方向，每个人都是独特的，请结合兴趣与经历综合考量。</p>
+            </section>
+
+            <!-- Share -->
+            <section class="section">
+                <h2 class="section-title">分享结果</h2>
+                <div class="share-section">
+                    <button class="btn btn-primary" onclick="copyResultText()">复制结果文字</button>
+                    <button class="btn btn-secondary" onclick="shareResult()">分享结果</button>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <hr>
+            <div class="meta-info">
+                <span><strong id="metaTypeCode">INTJ</strong> · <span id="metaCategory">分析家</span></span>
+                <span>荣格心理学类型 · 仅供参考</span>
+            </div>
+
+            <div class="footnote">
+                <i>非官方MBTI</i> 本描述基于荣格心理学类型及公共模型开发，仅供参考与自我探索，不可替代专业心理测评或诊断。
+            </div>
+
+            <div class="bottom-nav">
+                <a href="javascript:void(0)" onclick="resetTest()">重新测评</a>
+                <span style="color: #cbdae7;">|</span>
+                <a href="index.html">返回首页</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error state (no result data) -->
+    <div class="card" id="errorState" style="display: none">
+        <div class="error-page">
+            <h2>还没有测试结果</h2>
+            <p>请先完成 MBTI 人格测试，再来查看你的性格解读。</p>
+            <a href="test.html" class="btn btn-primary btn-large">去测试</a>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="js/types-data.js"></script>
+    <script src="js/result.js"></script>
+</body>
+</html>

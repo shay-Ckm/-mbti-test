@@ -1,0 +1,19 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.claude/
+.playwright-mcp/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Project extras (source materials, not needed for the site)
+people.json
+测试问题.txt
+百度翻译.py
+实施计划.md

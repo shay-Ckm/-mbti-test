@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBTI 人格测试</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="card">
+    <div class="test-page">
+      <!-- Progress Bar -->
+      <div class="test-header" id="progressBar">
+        <div class="dimension-badge" id="dimensionBadge">第一部分：外向 (E) vs 内向 (I)</div>
+        <div class="progress-text" id="progressText">第 1 / 20 题</div>
+        <div class="progress-bar">
+          <div class="progress-bar__fill" id="progressFill" style="width: 5%"></div>
+        </div>
+      </div>
+
+      <!-- Question Area -->
+      <div class="question-area" id="questionArea">
+        <div class="question-number" id="questionNumber">第 1 题</div>
+        <div class="question-text" id="questionText"></div>
+        <div class="options">
+          <button class="option-card" id="optionA" onclick="selectOption(QUESTIONS[currentIndex].id, 'A')">
+            <span class="option-label">A</span>
+            <span class="option-text" id="optionAText"></span>
+          </button>
+          <button class="option-card" id="optionB" onclick="selectOption(QUESTIONS[currentIndex].id, 'B')">
+            <span class="option-label">B</span>
+            <span class="option-text" id="optionBText"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="test-nav" id="testNav">
+        <button class="btn btn-ghost" id="prevBtn">← 上一题</button>
+        <button class="btn btn-primary" id="nextBtn">下一题 →</button>
+      </div>
+    </div>
+
+    <!-- Review Section (hidden initially) -->
+    <div class="review-section" id="reviewSection" style="display: none">
+      <h2 class="review-title">确认你的答案</h2>
+      <p class="review-hint" id="reviewCount">已答 0 / 20 题</p>
+      <div class="review-grid" id="reviewGrid"></div>
+      <div class="review-submit">
+        <button class="btn btn-primary btn-large" id="submitBtn" onclick="submitTest()">提交测试</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/questions.js"></script>
+  <script src="js/test.js"></script>
+</body>
+</html>

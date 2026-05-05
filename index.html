@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBTI 十六型人格测试</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="card">
+    <!-- ===== Page: Home ===== -->
+    <div class="page active" id="page-home">
+      <div class="hero">
+        <div class="particles-container" id="particlesContainer"></div>
+        <div class="hero-icon">🧠</div>
+        <h1 class="hero-title">MBTI 十六型人格测试</h1>
+        <p class="hero-subtitle"><span class="typewriter-text">探索你的性格密码</span></p>
+        <p class="hero-description">
+          通过 20 道专业题目，从四个维度分析你的性格倾向：
+          外向/内向、实感/直觉、思考/情感、判断/感知。
+          深入了解自己的思维方式、行为习惯和潜在优势。
+        </p>
+        <button class="btn btn-primary btn-large" onclick="startTest()">开始测试</button>
+        <p class="hero-hint">大约需要 5-8 分钟</p>
+      </div>
+
+      <div class="dims-preview">
+        <div class="dim-card">
+          <span class="dim-code">E/I</span>
+          <span class="dim-name">外向 · 内向</span>
+          <span class="dim-desc">注意力方向与精力来源</span>
+        </div>
+        <div class="dim-card">
+          <span class="dim-code">S/N</span>
+          <span class="dim-name">实感 · 直觉</span>
+          <span class="dim-desc">信息获取方式</span>
+        </div>
+        <div class="dim-card">
+          <span class="dim-code">T/F</span>
+          <span class="dim-name">思考 · 情感</span>
+          <span class="dim-desc">决策判断方式</span>
+        </div>
+        <div class="dim-card">
+          <span class="dim-code">J/P</span>
+          <span class="dim-name">判断 · 感知</span>
+          <span class="dim-desc">生活态度与外部世界组织方式</span>
+        </div>
+      </div>
+
+      <div class="footnote">
+        <i>非官方MBTI</i> 本测试基于荣格心理学类型及公共模型开发，仅供参考与自我探索，不可替代专业心理测评或诊断。
+      </div>
+    </div>
+
+    <!-- ===== Page: Test ===== -->
+    <div class="page" id="page-test">
+      <div class="test-page">
+        <div class="test-header">
+          <div class="dimension-badge" id="dimensionBadge">第一部分：外向 (E) vs 内向 (I)</div>
+          <div class="progress-text" id="progressText">第 1 / 20 题</div>
+          <div class="progress-bar">
+            <div class="progress-bar__fill" id="progressFill" style="width: 5%"></div>
+          </div>
+        </div>
+
+        <div class="question-area" id="questionArea">
+          <div class="question-icon" id="questionIcon">📝</div>
+          <div class="question-number" id="questionNumber">第 1 题</div>
+          <div class="question-text" id="questionText"></div>
+          <div class="options">
+            <button class="option-card" id="optionA">
+              <span class="option-label">A</span>
+              <span class="option-text" id="optionAText"></span>
+            </button>
+            <button class="option-card" id="optionB">
+              <span class="option-label">B</span>
+              <span class="option-text" id="optionBText"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="test-nav" id="testNav">
+          <button class="btn btn-ghost" id="prevBtn">← 上一题</button>
+          <button class="btn btn-primary" id="nextBtn">下一题 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Page: Review ===== -->
+    <div class="page" id="page-review">
+      <div class="review-section">
+        <h2 class="review-title">确认你的答案</h2>
+        <p class="review-hint" id="reviewCount">已答 0 / 20 题</p>
+        <div class="review-grid" id="reviewGrid"></div>
+        <div class="review-submit">
+          <button class="btn btn-primary btn-large" id="submitBtn">提交测试</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Page: Result ===== -->
+    <div class="page" id="page-result">
+      <div class="type-header" id="typeHeader">
+        <div class="type-badge" id="typeBadge"></div>
+        <div class="type-code" id="typeCode"></div>
+        <div class="type-name" id="typeName"></div>
+        <div class="slogan" id="slogan"></div>
+      </div>
+
+      <div class="content">
+        <section class="section">
+          <h2 class="section-title">性格素描</h2>
+          <div class="profile-text" id="profileText"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">维度得分</h2>
+          <div class="score-bars" id="scoreBars"></div>
+        </section>
+
+        <div class="two-col">
+          <section class="section">
+            <h2 class="section-title">独特优势</h2>
+            <ul class="strength-list" id="strengthList"></ul>
+          </section>
+          <section class="section">
+            <h2 class="section-title">潜在盲点</h2>
+            <ul class="blind-list" id="blindList"></ul>
+          </section>
+        </div>
+
+        <section class="section">
+          <h2 class="section-title">成长建议</h2>
+          <div class="advice-card" id="growthAdvice"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">代表人物</h2>
+          <div class="figure-pills" id="famousFigures"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">人际关系</h2>
+          <div class="quote-block" id="relationshipAdvice"></div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">适宜领域</h2>
+          <div class="career-pills" id="careerPills"></div>
+          <p style="margin-top: 0.9rem; font-size: 0.88rem; color: #4e627c;">※ 以上仅为常见方向，每个人都是独特的，请结合兴趣与经历综合考量。</p>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">分享结果</h2>
+          <div class="share-section">
+            <button class="btn btn-primary" onclick="copyResultText()">复制结果文字</button>
+            <button class="btn btn-secondary" onclick="shareResult()">分享结果</button>
+          </div>
+        </section>
+
+        <hr>
+        <div class="meta-info">
+          <span><strong id="metaTypeCode"></strong> · <span id="metaCategory"></span></span>
+          <span>荣格心理学类型 · 仅供参考</span>
+        </div>
+
+        <div class="footnote">
+          <i>非官方MBTI</i> 本描述基于荣格心理学类型及公共模型开发，仅供参考与自我探索，不可替代专业心理测评或诊断。
+        </div>
+
+        <div class="bottom-nav">
+          <a href="javascript:void(0)" onclick="resetTest()">重新测评</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Page: Error ===== -->
+    <div class="page" id="page-error">
+      <div class="error-page">
+        <h2>还没有测试结果</h2>
+        <p>请先完成 MBTI 人格测试，再来查看你的性格解读。</p>
+        <button class="btn btn-primary btn-large" onclick="showPage('page-home')">去测试</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/questions.js"></script>
+  <script src="js/types-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
