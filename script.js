@@ -1,0 +1,1327 @@
+/* ============================================================
+   MBTI 人格测试 · 共享逻辑（index / test / result 三页共用）
+   ------------------------------------------------------------
+   说明：
+   - 顶层只定义"数据 + 纯函数"，不直接触碰 DOM / localStorage，
+     便于用 Node 对计分逻辑做自动化测试（见 mbti-logic.test.js）。
+   - 页面初始化在 DOMContentLoaded 后按 <body id> 分发执行。
+   - 计分采用"双侧均值差分法"：每维度分别取两极端题目的作答均值，
+     再做差归一化，消除题量不平衡偏差（详见 开发文档.md 第 5 节）。
+   ============================================================ */
+'use strict';
+
+/* ================= 常量 ================= */
+
+var STORAGE_KEYS = {
+  answers: 'mbti_answers',
+  current: 'mbti_current',
+  result: 'mbti_result',
+  completions: 'mbti_completions'
+};
+
+/* 作答量表：4 点迫选（无中立），强同意=3 … 强不同意=-3 */
+var SCALE = [
+  { label: '强同意', tag: '完全符合', val: 3 },
+  { label: '同意',   tag: '基本符合', val: 1 },
+  { label: '不同意', tag: '不太符合', val: -1 },
+  { label: '强不同意', tag: '完全不符', val: -3 }
+];
+
+/* 维度定义：first = 首字母极，second = 次字母极 */
+var DIMS = ['EI', 'SN', 'TF', 'JP'];
+var DIM_LABELS = { EI: 'E·I', SN: 'S·N', TF: 'T·F', JP: 'J·P' };
+var DIM_FULL = { EI: ['外向', '内向'], SN: ['实感', '直觉'], TF: ['思考', '情感'], JP: ['判断', '感知'] };
+
+/* ================= 题库（24 题） =================
+   dim: 所属维度；dir: +1 表示同意本题 → 偏向次字母极（I/N/F/P），
+                       -1 表示同意本题 → 偏向首字母极（E/S/T/J）     */
+var QUESTIONS = [
+  { dim: 'EI', dir: -1, text: '周末我更愿意和朋友一起外出活动，而不是宅在家里' },
+  { dim: 'EI', dir: -1, text: '在社交场合，我通常是主动发起对话的那个人' },
+  { dim: 'EI', dir: +1, text: '独处一段时间后，我更容易恢复精力' },
+  { dim: 'EI', dir: -1, text: '我喜欢成为人群中的焦点' },
+  { dim: 'EI', dir: -1, text: '我更倾向于通过和别人交谈来理清自己的思路' },
+  { dim: 'EI', dir: +1, text: '比起热闹的大聚会，我更喜欢在小圈子里深度交流' },
+
+  { dim: 'SN', dir: -1, text: '我更关注事物的具体细节，而不是整体印象' },
+  { dim: 'SN', dir: +1, text: '我经常思考未来的各种可能性' },
+  { dim: 'SN', dir: -1, text: '我倾向于相信眼见为实的信息' },
+  { dim: 'SN', dir: +1, text: '我喜欢探索抽象的概念和理论' },
+  { dim: 'SN', dir: -1, text: '我更注重当下的体验，而不是未来的规划' },
+  { dim: 'SN', dir: +1, text: '我经常产生天马行空的联想' },
+
+  { dim: 'TF', dir: -1, text: '我做决定时主要依赖逻辑分析' },
+  { dim: 'TF', dir: +1, text: '做决策时，我会优先考虑他人的感受' },
+  { dim: 'TF', dir: -1, text: '争论时，我更在乎谁对谁错，而不是气氛是否融洽' },
+  { dim: 'TF', dir: +1, text: '我容易被感人的故事打动' },
+  { dim: 'TF', dir: -1, text: '我更擅长理性分析，而不是情感表达' },
+  { dim: 'TF', dir: +1, text: '我认为和谐的氛围比“正确”的答案更重要' },
+
+  { dim: 'JP', dir: -1, text: '我喜欢提前制定详细的计划' },
+  { dim: 'JP', dir: +1, text: '我更享受随性而为的生活方式' },
+  { dim: 'JP', dir: -1, text: '我的生活空间通常整洁有序' },
+  { dim: 'JP', dir: +1, text: '我喜欢同时开展多个项目' },
+  { dim: 'JP', dir: -1, text: '截止日期能有效推动我完成任务' },
+  { dim: 'JP', dir: +1, text: '比起按部就班，我更喜欢灵活应对' }
+];
+
+/* ================= 16 型人格资料 ================= */
+var TYPES = {
+  INTJ: {
+    zh: '战略家', emoji: '🧠',
+    tags: ['理性', '独立', '远见', '系统思维'],
+    trait: '深度与远见', blurb: 'TA 话不多，但脑子里装着一座未来城市的设计图。',
+    careers: ['战略咨询', '科研', '产品架构', '数据分析'],
+    fact: 'INTJ 仅占人口约 2%，是 16 型里接近“稀有物种”的存在。',
+    desc: '你是脑子里装着一座未来城市图纸的人。别人看到现状，你看到的是系统、规律和十年后的可能性。你话不多，不是没想法，而是懒得解释不重要的细节。你的独立让你扛得住孤独，也让你成为最可靠的长期主义者。别把自己逼太紧，偶尔允许计划被打乱，世界不会塌——而且，你身边那些“不够理性”的人，往往正是来帮你补上温度的人。',
+    partner: 'ENFP'
+  },
+  INTP: {
+    zh: '逻辑学家', emoji: '🧩',
+    tags: ['好奇', '思辨', '脑洞', '追根究底'],
+    trait: '拆解一切的理性', blurb: 'TA 的大脑像一间 24 小时营业的好奇心实验室。',
+    careers: ['程序员', '研究员', '数学/哲学', '架构设计'],
+    fact: '爱因斯坦、牛顿常被归类为 INTP——他们同样擅长在脑子里做实验。',
+    desc: '你的大脑像一间 24 小时营业的好奇心实验室。“为什么”是你的口头禅，逻辑漏洞在你面前无处遁形。你不一定在乎结论，更享受推理的过程本身。执行力偶尔跟不上脑速，ddl 前的你堪称效率之神。记住：把奇思妙想落到纸上，你会比谁都可怕。',
+    partner: 'ENTJ'
+  },
+  ENTJ: {
+    zh: '指挥官', emoji: '👑',
+    tags: ['果断', '领导力', '目标感', '高效'],
+    trait: '把混乱变成队形的魄力', blurb: 'TA 是天生“把事情搞定”的选手。',
+    careers: ['企业管理', '创业', '项目管理', '律师'],
+    fact: 'ENTJ 常被同事称为“最快让会议室安静下来的人”。',
+    desc: '你是天生的“把事情搞定”型选手。混乱在你面前会本能地排列成队形，你说话自带方案，行动自带节奏。你讨厌低效，欣赏有能力的人，也对自己毫不留情。记得偶尔把“效率”调低一档，听听别人的感受——这不会削弱你的领导力，反而会让你从“指挥官”升级成“令人追随的领袖”。',
+    partner: 'INTP'
+  },
+  ENTP: {
+    zh: '辩论家', emoji: '🎯',
+    tags: ['机智', '脑洞', '挑战常规', '点子王'],
+    trait: '把规则当假设的胆量', blurb: 'TA 的反应快得像装了声控灯。',
+    careers: ['创意策划', '产品经理', '公关', '创业'],
+    fact: '很多脱口秀演员都被认为是 ENTP——把抬杠变成了艺术。',
+    desc: '你的大脑是“挑战模式”常开的辩论场，规则和惯例对你来说都是待测试的假设。你反应快、点子多，三句话能把一个话题盘活。你享受观点的碰撞，偶尔为了好玩而抬杠。把精力聚焦到一两件真正在乎的事上，你的创造力能把世界重新拼一遍。',
+    partner: 'INFJ'
+  },
+  INFJ: {
+    zh: '提倡者', emoji: '🌱',
+    tags: ['洞察', '理想主义', '温柔', '共情'],
+    trait: '照见人心的温柔', blurb: 'TA 像一座安静的灯塔，能看见别人自己都没发现的情绪。',
+    careers: ['心理咨询', '教育', '内容创作', '公益'],
+    fact: 'INFJ 是最稀有的类型之一，被戏称为“人间安慰剂”。',
+    desc: '你像一座安静的灯塔，能照见别人自己都没发现的情绪。你表面平静，内心却装着改变世界的宏大理想。你倾听、你理解、你默默付出，却也容易因为过度共情而累。学会把“照顾别人”的清单里加上自己，你的温柔才不会被消耗成委屈。',
+    partner: 'ENTP'
+  },
+  INFP: {
+    zh: '调停者', emoji: '🌙',
+    tags: ['理想', '真诚', '诗意', '内心丰富'],
+    trait: '不肯妥协的真诚', blurb: 'TA 的内心住着一个充满诗意的宇宙。',
+    careers: ['作家', '设计师', '心理学', '教育'],
+    fact: '莎士比亚笔下的许多角色都被认为带有 INFP 色彩。',
+    desc: '你的内心住着一个充满诗意的宇宙，真诚和理想是你最珍视的东西。你敏感，所以能察觉细微的美好；你柔软，却比谁都坚持原则。现实偶尔让你失望，但你从未放弃让世界变得温柔一点的念头。把理想拆成每天能走的一小步，你就是温柔而强大的存在。',
+    partner: 'ENFJ'
+  },
+  ENFJ: {
+    zh: '主人公', emoji: '🌟',
+    tags: ['感染力', '利他', '组织力', '热情'],
+    trait: '让团队发光的魔法', blurb: 'TA 天生自带“让身边人都变好”的磁场。',
+    careers: ['教师', '人力资源', '公益组织', '公关'],
+    fact: 'ENFJ 常被称为“天生的老师”，连批评都让人感到被关心。',
+    desc: '你天生自带“让团队发光”的魔法。你能敏锐捕捉每个人的潜能，并真心为他们喝彩。你擅长鼓舞、协调、把散落的人聚成一股力量。但请记得：你不必为所有人的情绪负责。留一点能量给自己，你才能持续地照亮别人。',
+    partner: 'INFP'
+  },
+  ENFP: {
+    zh: '竞选者', emoji: '🎈',
+    tags: ['热情', '好奇', '感染力', '脑洞'],
+    trait: '点燃气氛的阳光', blurb: 'TA 是行走的彩虹糖，走到哪儿都能点亮气氛。',
+    careers: ['传媒', '市场营销', '主持人', '创意策划'],
+    fact: 'ENFP 的聊天记录长度通常与快乐程度成正比。',
+    desc: '你是行走的彩虹糖，走到哪儿都能点亮气氛。你对世界抱有近乎无限的好奇，话题从宇宙聊到奶茶毫无压力。你讨厌被框架束缚，灵感像弹幕一样停不下来。找到那件让你愿意长期投入的事，你的热情会从“三分钟热度”变成“十年热爱”。',
+    partner: 'INTJ'
+  },
+  ISTJ: {
+    zh: '物流师', emoji: '🏛️',
+    tags: ['可靠', '严谨', '责任感', '秩序'],
+    trait: '说到做到的可靠', blurb: 'TA 是朋友眼中“说到做到”的代名词。',
+    careers: ['财务', '审计', '行政管理', '工程师'],
+    fact: '许多顶级审计师和档案管理员都是 ISTJ——混乱在他们面前自动退散。',
+    desc: '你是朋友眼中“说到做到”的代名词。你重视承诺、尊重规则，把每件事都做得井井有条。别人眼中的枯燥，在你这里是安全感。你不爱浮夸，但你稳稳托住了很多人的生活。偶尔给自己放个假，允许生活出现一点“不完美”的惊喜。',
+    partner: 'ESFP'
+  },
+  ISFJ: {
+    zh: '守卫者', emoji: '🛡️',
+    tags: ['细心', '温暖', '忠诚', '默默付出'],
+    trait: '记得每个细节的用心', blurb: 'TA 记得每个人的喜好，把细节做到让人心暖。',
+    careers: ['护理', '行政', '教师', '客户服务'],
+    fact: 'ISFJ 是人口占比最高的类型之一，堪称“人间后勤部”。',
+    desc: '你记得每个人的喜好，默默把细节做到让人心暖。你不爱抢风头，但关键时刻总是最可靠的后盾。你的付出常常被当作理所当然，所以更要学会开口表达自己的需要。你守护别人的样子很酷，也请允许别人守护你。',
+    partner: 'ESTP'
+  },
+  ESTJ: {
+    zh: '总经理', emoji: '🏢',
+    tags: ['务实', '效率', '组织', '担当'],
+    trait: '把靠谱写进基因', blurb: 'TA 是秩序与执行力运转得像精密仪器的人。',
+    careers: ['管理层', '运营', '公务员', '供应链'],
+    fact: 'ESTJ 常被同事称为“行走的日程表”。',
+    desc: '你是把“靠谱”写在基因里的人。规则、秩序、执行力，在你手里运转得像精密仪器。你说话直接，做事利落，最看不得拖泥带水。你习惯了扛责任，但也别把所有事都揽在自己肩上——学会放手，你会发现团队比想象中更能干。',
+    partner: 'ISFP'
+  },
+  ESFJ: {
+    zh: '执政官', emoji: '🤝',
+    tags: ['热心', '周到', '受欢迎', '责任感'],
+    trait: '照顾所有人的周到', blurb: 'TA 是人群里的“气氛担当 + 后勤总管”。',
+    careers: ['医疗护理', '教育培训', '活动策划', '客户关系'],
+    fact: 'ESFJ 往往拥有“全班都认识”的社交超能力。',
+    desc: '你是人群里的“气氛担当 + 后勤总管”。你记得每个人的生日，操心每一顿聚餐，把“照顾人”当成天赋。你渴望被需要，也容易因为他人的情绪而内耗。记住：你的价值不需要通过讨好来证明，真正的朋友爱的是本来的你。',
+    partner: 'ISTP'
+  },
+  ISTP: {
+    zh: '鉴赏家', emoji: '🔧',
+    tags: ['冷静', '动手能力', '独立', '务实'],
+    trait: '冷静拆解一切的手', blurb: 'TA 话不多，但手很巧，眼很准。',
+    careers: ['工程师', '外科医生', '飞行员', '技术维修'],
+    fact: 'ISTP 常被称为“最冷静的急救者”，越乱越清醒。',
+    desc: '你话不多，但手很巧，眼很准。你擅长拆解问题——无论是机器还是难题，到你手里都能被拆明白。你享受独处，讨厌被过度安排。你不是冷漠，只是用行动而非言语表达关心。找到能让你“上手”的领域，你就是沉默的高手。',
+    partner: 'ESFJ'
+  },
+  ISFP: {
+    zh: '探险家', emoji: '🎨',
+    tags: ['审美', '随性', '真诚', '感官敏锐'],
+    trait: '感知美好的细腻', blurb: 'TA 用感官体验世界，接收得比别人细腻。',
+    careers: ['设计师', '摄影', '音乐', '手工艺'],
+    fact: '许多顶尖摄影师和美食家是 ISFP——他们“尝”得出世界的层次。',
+    desc: '你用感官体验世界：颜色、气味、触感、一首歌的情绪，你都接收得比别人细腻。你不爱高谈阔论，更喜欢用行动和作品表达自己。你随性，但内心有自己的坚持。别怕慢，你的节奏里藏着别人学不来的美感。',
+    partner: 'ESTJ'
+  },
+  ESTP: {
+    zh: '企业家', emoji: '⚡',
+    tags: ['行动派', '应变', '胆大', '魅力'],
+    trait: '先做了再说的果断', blurb: 'TA 是“机会面前停留不超过三秒”的行动派。',
+    careers: ['销售', '创业', '体育', '谈判'],
+    fact: 'ESTP 常被形容为“危机现场自带 BGM 的人”。',
+    desc: '你是“先做了再说”的代言人。机会在你面前不会停留超过三秒，你天生擅长临场发挥、随机应变。你魅力四射，走到哪都带着现场感。你讨厌冗长的计划，但请偶尔让“三分钟热度”多停留一会儿——专注的力量能让你从“厉害”变成“传奇”。',
+    partner: 'ISFJ'
+  },
+  ESFP: {
+    zh: '表演者', emoji: '🎭',
+    tags: ['活力', '感染力', '及时行乐', '社交达人'],
+    trait: '自带聚光灯的快乐', blurb: 'TA 走到哪儿都像在开派对。',
+    careers: ['演艺', '旅游', '主持', '销售'],
+    fact: 'ESFP 聚会时的笑声通常能传遍整层楼。',
+    desc: '你是自带聚光灯的人，走到哪儿都像在开派对。你热爱生活本身：美食、音乐、朋友、当下的快乐，你一样都不愿错过。你的乐观能治愈很多人，但深夜的你也需要被治愈。记得给情绪留一个出口，快乐和难过都是你的一部分。',
+    partner: 'ISTJ'
+  }
+};
+
+/* ================= 16 型扩展内容（人设/超能力/成长建议/英文名/主题色） =================
+   主题色对应 16P 四大气质群组：
+   分析家(紫 #6C63FF) / 外交家(绿 #00B894) / 守护者(蓝 #2E86DE) / 探险家(橙 #F0932B)   */
+var TYPE_EXTRA = {
+  INTJ: { en: 'Strategist', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '计划是我的铠甲，孤独是我的燃料', superpower: '在别人看见混乱的地方，你一眼看见系统与终局。', growth: '别让完美主义拖住行动，也别把"不够理性"的人挡在门外。' },
+  INTP: { en: 'Logician', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '我的大脑是一台永不停机的推理机', superpower: '再复杂的难题到你手里，都会被拆成可推导的零件。', growth: '把"想清楚"和"做出来"连起来——行动力是你唯一的短板。' },
+  ENTJ: { en: 'Commander', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '效率即正义，行动即答案', superpower: '你能在十秒内把一团乱麻理成作战地图。', growth: '胜负之外还有人心的温度，慢一点有时反而更快。' },
+  ENTP: { en: 'Debater', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '规则？那只是待测试的假设', superpower: '一句话就能把沉闷的讨论盘活成头脑风暴。', growth: '把发散的好奇收束成一件愿意长期坚持的事。' },
+  INFJ: { en: 'Advocate', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '我听见了那些没说出口的话', superpower: '你能在别人开口之前，就感知到他们的需要。', growth: '共情别人之前，先记得照顾自己的电量。' },
+  INFP: { en: 'Mediator', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '温柔是我对抗世界的方式', superpower: '在最普通的日子里，你也能看见诗与微光。', growth: '把理想拆成今天能走的一小步，别让它只停在梦里。' },
+  ENFJ: { en: 'Protagonist', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '让每个人都发光，是我的天赋', superpower: '你能把散落的人聚成一股有方向的力量。', growth: '你不必为所有人的情绪负责——留点能量给自己。' },
+  ENFP: { en: 'Campaigner', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '世界那么大，快乐那么多，一样都别错过', superpower: '再冷清的场合，你三句话就能点亮气氛。', growth: '找到那件值得你十年热爱的事，让热情真正扎根。' },
+  ISTJ: { en: 'Logistician', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '说到做到，是我给自己的承诺', superpower: '你经手的每件事，都会变得井井有条。', growth: '允许生活出现一点"计划外"的惊喜，也挺好。' },
+  ISFJ: { en: 'Defender', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '我记住了你所有的小习惯', superpower: '你的细心，能悄悄暖到每个人的心坎里。', growth: '学会开口说出自己的需要，付出不该是单向的。' },
+  ESTJ: { en: 'Executive', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '秩序与担当，是我的生存美学', superpower: '混乱的场面到你手里，会自动排成队列。', growth: '试着放手让团队自己飞，你会收获更多。' },
+  ESFJ: { en: 'Consul', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '照顾好每个人，是我天生的使命', superpower: '你记得所有人的生日，也接得住所有人的情绪。', growth: '你的价值不需要靠讨好来证明，做自己就很好。' },
+  ISTP: { en: 'Virtuoso', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '我不多说，但我总能搞定', superpower: '无论机器还是难题，到你手上都能被拆明白。', growth: '用行动表达关心很棒，偶尔也试试把话说出口。' },
+  ISFP: { en: 'Adventurer', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '我用感官，收藏这个世界', superpower: '颜色、气味、旋律……你接收到的细节比谁都多。', growth: '别怕慢，你的节奏里藏着别人学不来的美感。' },
+  ESTP: { en: 'Entrepreneur', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '先做了再说，机会不等人', superpower: '现场突发状况？你天生就是救场高手。', growth: '让"三分钟热度"多停留一会儿，专注能成就传奇。' },
+  ESFP: { en: 'Entertainer', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '生活就是一场永不散场的派对', superpower: '你的笑声，能治愈一整天的疲惫。', growth: '快乐和难过都是你的一部分，记得给情绪留个出口。' }
+};
+
+/* ================= 16 型成长中心数据（解读 / 职业 / 人生） ================= */
+var TYPE_GROWTH = {
+  INTJ: {
+    strengths: ['十年后的图景一眼看穿', '深度思考成瘾', '说到做到的高标准', '危机中异常冷静'],
+    weaknesses: ['完美主义让人内耗', '情感表达像说明书', '对低效零容忍易得罪人'],
+    drive: '你被"掌控与精通"驱动：把复杂系统拆解、重构、优化，是你最大的心流。',
+    workStyle: '单打独斗型专家：适合独立负责长期项目，讨厌事事汇报；给你目标与信任，你还你超出预期的方案。',
+    roles: ['战略咨询顾问', '技术架构师', '科研项目负责人', '量化分析师'],
+    careerTips: ['选能独立决策、看重结果的岗位', '定期把想法讲出来，别让它烂在脑子里', '把"不够聪明"的同事也当成资源'],
+    lifeTips: ['完成 > 完美：先交付再打磨', '偶尔允许计划被打乱，世界不会塌', '用一句话表达"我在乎你"，比做十件事更有效'],
+    relationTip: '别用"为你好"替别人做决定；先问需求再给方案，你的建议会更好被接受。'
+  },
+  INTP: {
+    strengths: ['逻辑漏洞无处遁形', '知识吸收像海绵', '创意与严谨兼备'],
+    weaknesses: ['想太多做太少', '行动力随灵感波动', '社交电量见底快'],
+    drive: '你被"理解事物本质"驱动：一个想不通的问题，能让你兴奋到凌晨三点。',
+    workStyle: '思考型体质：适合研究、架构、写作等需要深度沉浸的岗位，讨厌无意义的会议。',
+    roles: ['软件工程师', '科研学者', '数据分析师', '产品策略'],
+    careerTips: ['把"想清楚"和"做出来"设成两个阶段', '用写作外化思考，防止脑内死循环', '选择允许弹性时间的工作环境'],
+    lifeTips: ['先做"最小可行版本"，胜过想出一百个方案', '定期出门晒太阳，灵感需要氧气', '关系里少讲道理、多讲感受，会省很多事'],
+    relationTip: '你纠正别人出于好意，但听起来像抬杠；先肯定一句，再提出不同看法。'
+  },
+  ENTJ: {
+    strengths: ['天生领导者气场', '执行力拉满', '危机时刻拍板决断', '目标感极强'],
+    weaknesses: ['对慢节奏没耐心', '容易忽略他人感受', '把休息当浪费时间'],
+    drive: '你被"赢与掌控"驱动：定下目标的那一刻，你已经开始规划胜利的路径。',
+    workStyle: '天生的管理者：适合带团队、定战略，讨厌含糊其辞；你的直球风格能快速推进事情。',
+    roles: ['企业高管', '创业者', '项目经理', '投行/咨询'],
+    careerTips: ['多听"不赞成"的声音，防止决策盲区', '把功劳分出去，团队才愿意跟你走', '给下属失败的空间，成长比效率更重要'],
+    lifeTips: ['赢不是唯一目标，过程里的关系同样珍贵', '每周留半天"什么都不做"', '承认"我需要帮助"不会削弱你的权威'],
+    relationTip: '你的关心容易变成"命令"；把"你应该"换成"要不要一起试试"，关系会松弛很多。'
+  },
+  ENTP: {
+    strengths: ['脑洞永动机', '三秒看穿话术漏洞', '临场反应极快', '挑战常规的勇气'],
+    weaknesses: ['兴趣切换比翻书快', '为抬杠而抬杠', '讨厌流程和细节'],
+    drive: '你被"可能性与挑战"驱动：越是"不可能"，你越兴奋。',
+    workStyle: '点子型选手：适合创意、谈判、产品等需要快速反应的岗位；细节执行请交给靠谱的队友。',
+    roles: ['产品经理', '创意总监', '创业者', '律师/谈判专家'],
+    careerTips: ['把最兴奋的点子写成最小方案试跑', '给无聊的细节设番茄钟，别让它拖垮你', '找一个执行型搭档，脑洞才能落地'],
+    lifeTips: ['好奇心是天赋，但深度才能造护城河', '偶尔让"最后一个观点"留在心里', '承认自己也会错，辩论才会变成交流'],
+    relationTip: '对方不需要你赢，需要被理解；把"但是"换成"有意思，再说说"。'
+  },
+  INFJ: {
+    strengths: ['洞察人心的雷达', '温柔而坚定的原则', '为理想长期主义', '深度共情力'],
+    weaknesses: ['过度共情容易内耗', '理想受挫时容易摆烂', '不擅长拒绝'],
+    drive: '你被"意义感"驱动：做一件事之前，你需要先说服自己"它值得"。',
+    workStyle: '使命驱动型：适合教育、心理、内容等能影响他人的领域；讨厌纯商业化的内卷。',
+    roles: ['心理咨询师', '教育工作者', '内容创作者', '公益项目负责人'],
+    careerTips: ['把"改变世界"拆成"每周改变一个人"', '学会对不合理需求说不', '找到同类，别一个人扛理想'],
+    lifeTips: ['照顾别人之前，先给自己的电量充满', '完美主义退一步：先完成，再完善', '你的直觉很准，但请用现实验证它'],
+    relationTip: '你总在"读空气"；偶尔直说"我需要……"，别人才能真的懂你。'
+  },
+  INFP: {
+    strengths: ['丰富的内心宇宙', '真诚到发光的表达', '对美好事物的敏锐', '坚定的价值观'],
+    weaknesses: ['情绪敏感易受伤', '计划常败给心情', '害怕冲突爱逃避'],
+    drive: '你被"真实与美"驱动：一句真诚的话、一个动人的故事，能让你记很久。',
+    workStyle: '创作者体质：适合写作、设计、艺术等能表达自我的领域；需要安静和不被打断的时间。',
+    roles: ['作家/编辑', '插画师/设计师', '心理咨询', '教育/公益'],
+    careerTips: ['用作品说话，别用性格说服老板', '给创作设截止日，灵感才会准时上班', '找一个欣赏你而非改造你的团队'],
+    lifeTips: ['理想拆成小步，今天就走一步', '允许自己偶尔摆烂，那是充电不是失败', '冲突不可怕，表达出来关系才会更深'],
+    relationTip: '你总在照顾别人的情绪，却很少说出自己的委屈；每周给信任的人讲一次真心话。'
+  },
+  ENFJ: {
+    strengths: ['鼓舞人心的感染力', '把团队拧成一股绳', '敏锐捕捉他人潜能', '热心且行动力强'],
+    weaknesses: ['为所有人操心到累', '难拒绝他人期待', '把批评当否定'],
+    drive: '你被"看见他人成长"驱动：当你说"你可以的"并且他真的做到了，是你最快乐的时刻。',
+    workStyle: '团队催化剂：适合教育、管理、公关等需要凝聚人心的岗位；你的热情是团队最好的燃料。',
+    roles: ['教师/培训师', '人力资源/团队管理', '公关/活动策划', '公益组织'],
+    careerTips: ['别把团队的锅都自己背', '学会把"操心"授权出去', '选择价值观一致的平台'],
+    lifeTips: ['你不必让所有人都满意', '被否定不等于你不够好，那是信息不是判决', '留时间给自己充电，蜡烛不能两头烧'],
+    relationTip: '你擅长鼓励别人，却很少接受鼓励；允许自己被照顾，也是一种成长。'
+  },
+  ENFP: {
+    strengths: ['热情感染全场', '灵感源源不断', '与人连接的天赋', '乐观抗挫'],
+    weaknesses: ['三分钟热度', '细节与坚持是短板', '情绪来得快去得也快'],
+    drive: '你被"新奇与连接"驱动：一个新朋友、一个新点子，都能让你瞬间满血。',
+    workStyle: '创意火花型：适合传媒、营销、主持等需要热情输出的岗位；需要一个帮你收尾的搭档。',
+    roles: ['市场营销', '媒体/主持人', '创意策划', '社群运营'],
+    careerTips: ['选"人+创意"结合的工作', '把灵感当天记录，别等它蒸发', '主动寻求反馈，别靠自我感觉'],
+    lifeTips: ['热爱需要长期主义：先坚持 90 天再说', '独处不是无聊，是给自己充电', '承诺了的事，把它写进日历'],
+    relationTip: '你的热情很珍贵，但记得给对话留一半时间给对方；倾听比表达更让人喜欢你。'
+  },
+  ISTJ: {
+    strengths: ['说到做到的信誉', '极强的责任感', '细节零失误', '稳定可靠的执行'],
+    weaknesses: ['抗拒变化', '不擅长表达情感', '对自己和他人过于严格'],
+    drive: '你被"秩序与承诺"驱动：一切井井有条、说到做到，是你最大的安心感。',
+    workStyle: '中流砥柱型：适合财务、审计、工程等需要精确与稳定的岗位；你是团队最靠谱的那块基石。',
+    roles: ['会计师/审计师', '系统工程师', '行政管理', '质量管理'],
+    careerTips: ['用数据说话，你的严谨就是竞争力', '主动拥抱一次流程优化，别固守旧习惯', '在稳定中留出学习新技能的时间'],
+    lifeTips: ['计划之外的小惊喜，也可以很美好', '把"关心"说出来，别只做不说', '对自己宽容一点：偶尔的失误不是失职'],
+    relationTip: '你的爱是行动不是语言；但请偶尔加一句"我担心你""我想你"，对方才能收到信号。'
+  },
+  ISFJ: {
+    strengths: ['无微不至的细心', '忠诚可靠', '默默付出的耐心', '极强的同理心'],
+    weaknesses: ['付出型委屈自己', '不敢提需求', '害怕改变与冲突'],
+    drive: '你被"让身边的人安心"驱动：看到你在乎的人因为你的照顾而轻松，你就满足了。',
+    workStyle: '后勤担当型：适合护理、行政、教育、客服等需要耐心与细心的岗位；你让一切运转丝滑。',
+    roles: ['护士/护理', '行政/人事', '教师', '客户服务'],
+    careerTips: ['你的付出值得被看见：学会汇报成果', '把"不"字练熟，保护自己的精力', '选择尊重付出的环境，远离消耗型团队'],
+    lifeTips: ['照顾别人之前，先照顾好自己', '你的需求同样重要，说出来不丢人', '改变不可怕，你已经比想象中强大'],
+    relationTip: '你记得所有人的生日，却没人知道你累了；主动开口，爱你的人会接住你。'
+  },
+  ESTJ: {
+    strengths: ['组织力天生强悍', '执行力与担当', '规则面前一视同仁', '务实高效'],
+    weaknesses: ['对"感受"缺乏耐心', '习惯性掌控一切', '难接受非主流做法'],
+    drive: '你被"效率与秩序"驱动：看到混乱被理顺、团队高效运转，你最有成就感。',
+    workStyle: '运营掌舵型：适合管理、运营、供应链等需要统筹的岗位；你的日程表就是团队的作战图。',
+    roles: ['运营总监', '供应链管理', '公务员/管理者', '项目管理'],
+    careerTips: ['多问"为什么"，别只执行流程', '学会授权：你不做，团队永远不会', '向下属表达认可，比罚款更有效'],
+    lifeTips: ['效率之外，留点时间给"没有意义"的快乐', '放下控制，别人也能把事做好', '你的严厉背后是负责，但请把温柔说出口'],
+    relationTip: '你习惯安排一切；但亲密关系需要商量，而不是通知。'
+  },
+  ESFJ: {
+    strengths: ['照顾周到的人情味', '强大的社交凝聚力', '责任感爆棚', '行动派热心肠'],
+    weaknesses: ['过度在意他人评价', '讨好型付出', '难以接受"不被需要"'],
+    drive: '你被"被需要与被认可"驱动：大家因为你而聚在一起，你就值得。',
+    workStyle: '氛围担当型：适合教育、医疗、活动、客户关系等与人打交道的岗位；你是团队的情绪中枢。',
+    roles: ['活动策划', '客户关系', '教师/培训', '医疗护理'],
+    careerTips: ['把"被需要"和"自我价值"分开', '在聚会组织者之外，学会接住自己的情绪', '选择反馈及时、人情味浓的环境'],
+    lifeTips: ['你的价值不需要靠讨好来证明', '偶尔做"不重要"的自己，也很可爱', '别人的评价是参考，不是判决书'],
+    relationTip: '你总在问"你还好吗"，也请偶尔回答别人问你的"你还好吗"。'
+  },
+  ISTP: {
+    strengths: ['动手解决一切', '危机中的冷静', '极强的观察力', '实用主义天才'],
+    weaknesses: ['讨厌被安排', '情感表达稀缺', '对长期承诺不耐烦'],
+    drive: '你被"拆解与搞定"驱动：一件坏掉的东西在你手里重新运转，是你最爽的时刻。',
+    workStyle: '问题解决型：适合工程、技术、医疗、驾驶等需要实操的岗位；你讨厌开会，爱上手干活。',
+    roles: ['机械/软件工程师', '外科医生', '飞行员/技师', '极限运动教练'],
+    careerTips: ['选"结果导向"的岗位，少开会多干活', '把经验写成文档，别人能学你更强', '每两年学一项新技能，保持手感'],
+    lifeTips: ['体验式学习最适合你：想一万遍不如上手一次', '对在乎的人，试试把"嗯"换成一句完整的话', '给未来留点规划，别全凭当下心情'],
+    relationTip: '你话少不是冷漠；但请偶尔主动发一条消息，别让在乎你的人猜。'
+  },
+  ISFP: {
+    strengths: ['与生俱来的审美', '真诚不装', '感官世界的收藏家', '随性而松弛'],
+    weaknesses: ['计划总被情绪打断', '不擅长争取利益', '容易自我怀疑'],
+    drive: '你被"美与真实"驱动：一首歌的情绪、一道光的颜色，都能让你确认"活着真好"。',
+    workStyle: '创作型：适合设计、摄影、音乐、手工艺等能用手艺表达美的岗位；需要自由与留白。',
+    roles: ['视觉设计师', '摄影师/剪辑', '音乐人', '手工艺人'],
+    careerTips: ['把作品集当成你的简历', '定价时别心虚：你的审美有市场', '找一个"看得懂你"的团队，比高薪重要'],
+    lifeTips: ['你的节奏很慢，但那是风格不是缺点', '偶尔逼自己一把，成果会让你惊喜', '把感受说出来，别让沉默吞掉委屈'],
+    relationTip: '你习惯用陪伴表达爱；偶尔也用语言确认关系，别让误会积成隔阂。'
+  },
+  ESTP: {
+    strengths: ['行动力闪电级', '临场应变的天才', '天生的谈判魅力', '精力旺盛'],
+    weaknesses: ['耐心余额不足', '忽视长期规划', '为刺激而冒险'],
+    drive: '你被"当下与行动"驱动：机会来了三秒内出手，是你的人生哲学。',
+    workStyle: '实战派选手：适合销售、创业、体育、谈判等高压快节奏的岗位；静止对你等于消耗。',
+    roles: ['销售总监', '创业者', '体育/健身', '危机公关'],
+    careerTips: ['给每个冲动设一个"最小试错成本"', '找一个规划型搭档补你的长线', '赢了之后复盘，运气才能变成能力'],
+    lifeTips: ['三分钟热度可以，但要有一个领域坚持十年', '停下来不是认输，是补充弹药', '把"我赢"换成"我们赢"，路更宽'],
+    relationTip: '你的魅力四射，但请记住对方要的是"被记得"，而不是"被征服"。'
+  },
+  ESFP: {
+    strengths: ['自带聚光灯的感染力', '活在当下的快乐', '让气氛升温的天赋', '真诚的慷慨'],
+    weaknesses: ['回避负面情绪', '计划感薄弱', '需要被关注'],
+    drive: '你被"快乐与体验"驱动：一场尽兴的聚会、一次说走就走的旅行，就是你的人生充电桩。',
+    workStyle: '气氛制造机：适合演艺、旅游、主持、零售等热闹有反馈的岗位；独处的办公室会闷坏你。',
+    roles: ['演员/主播', '旅游/活动策划', '主持人', '零售/餐饮管理'],
+    careerTips: ['选"有观众"的工作，反馈就是你的动力', '把快乐做成产品，你的天赋就有市场', '财务上找个"扫兴但正确"的人帮你把关'],
+    lifeTips: ['快乐和难过都是你的一部分，别只留下快乐', '给计划留 10% 的提前量，生活更从容', '独处时也对自己温柔，你不需要一直热闹'],
+    relationTip: '你把快乐带给所有人，也请允许自己在信任的人面前哭。'
+  }
+};
+
+/* ================= 存储工具（带容错） ================= */
+function getStore(key) {
+  try {
+    var raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function setStore(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 隐私模式等场景静默失败 */ }
+}
+function clearTestData() {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.answers);
+    localStorage.removeItem(STORAGE_KEYS.current);
+    localStorage.removeItem(STORAGE_KEYS.result);
+  } catch (e) { /* ignore */ }
+}
+
+/* ================= 计分核心（纯函数，可测试） =================
+   输入：answers —— 长度 24 的数组，元素为 -3/-1/1/3 或 null（未答）
+   输出：{
+     letters: 'ESTJ',
+     dims: { EI: {A,B,score,pctB,letter,strength,amb}, ... },
+     easterEgg: bool（四维全部倾向模糊）,
+     type: TYPES[letters] 或 null
+   }                                                          */
+function computeResult(answers) {
+  var res = { letters: '', dims: {}, easterEgg: false, type: null };
+  var allAmb = true;
+
+  DIMS.forEach(function (dim) {
+    var A = dim[0];          // 首字母极（E/S/T/J）
+    var B = dim[1];          // 次字母极（I/N/F/P）
+    var sumA = 0, cntA = 0, sumB = 0, cntB = 0;
+
+    QUESTIONS.forEach(function (q, i) {
+      var r = answers[i];
+      if (r === null || r === undefined || q.dim !== dim) return;
+      if (q.dir > 0) { sumB += r; cntB++; } else { sumA += r; cntA++; }
+    });
+
+    var avgA = cntA ? sumA / cntA : 0;
+    var avgB = cntB ? sumB / cntB : 0;
+    var score = (avgB - avgA) / 2;              // ∈ [-3, 3]
+    var pctB = Math.round(50 + (score / 3) * 50); // ∈ [0, 100]，50 为中立
+    var letter = pctB >= 50 ? B : A;
+    var strength = Math.min(100, Math.round(Math.abs(pctB - 50) * 2));
+    var amb = Math.abs(score) <= 1;             // 倾向模糊判定
+
+    if (!amb) allAmb = false;
+    res.dims[dim] = { A: A, B: B, score: score, pctB: pctB, letter: letter, strength: strength, amb: amb };
+    res.letters += letter;
+  });
+
+  res.easterEgg = allAmb;
+  res.type = TYPES[res.letters] || null;
+  return res;
+}
+
+function answeredCount(answers) {
+  var n = 0;
+  (answers || []).forEach(function (a) { if (a !== null && a !== undefined) n++; });
+  return n;
+}
+
+/* ================= 小工具 ================= */
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+function toast(msg) {
+  var t = $('#toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+}
+
+/* 数字滚动动画（easeOutCubic） */
+function countUp(el, target, dur, fmt) {
+  if (!el) return;
+  var t0 = null;
+  fmt = fmt || function (v) { return v.toLocaleString('zh-CN'); };
+  function step(ts) {
+    if (t0 === null) t0 = ts;
+    var k = Math.min(1, (ts - t0) / dur);
+    var eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(Math.round(target * eased));
+    if (k < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* 带页面转场跳转 */
+function navigate(url) {
+  document.body.classList.add('leaving');
+  setTimeout(function () { window.location.href = url; }, 250);
+}
+
+/* 页面淡入淡出转场：拦截站内 <a href="*.html"> 点击 */
+function initTransitions() {
+  document.body.classList.add('entering');
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { document.body.classList.remove('entering'); });
+  });
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank') return;
+    var href = a.getAttribute('href');
+    if (!href || href.indexOf('.html') === -1) return;
+    e.preventDefault();
+    navigate(href);
+  });
+}
+
+/* 光标辉光（仅桌面精细指针设备） */
+function initCursorGlow() {
+  if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  var el = document.createElement('div');
+  el.className = 'cursor-glow';
+  document.body.appendChild(el);
+  var x = window.innerWidth / 2, y = window.innerHeight / 2, tx = x, ty = y, raf = null;
+  document.addEventListener('mousemove', function (e) {
+    tx = e.clientX; ty = e.clientY;
+    if (!raf) loop();
+  });
+  function loop() {
+    raf = requestAnimationFrame(function () {
+      x += (tx - x) * 0.12;
+      y += (ty - y) * 0.12;
+      el.style.transform = 'translate(' + (x - 210) + 'px,' + (y - 210) + 'px)';
+      if (Math.abs(tx - x) > 0.5 || Math.abs(ty - y) > 0.5) loop();
+      else raf = null;
+    });
+  }
+}
+
+/* ============================================================
+   首页：打字机 + 人数统计
+   ============================================================ */
+function initHome() {
+  var text = '发现你的人格密码';
+  var box = $('#typewriterText');
+  if (!box) return;
+
+  var i = 0;
+  var timer = setInterval(function () {
+    box.textContent = text.slice(0, ++i);
+    if (i >= text.length) clearInterval(timer);
+  }, 85);
+
+  var base = 128473 + Math.floor(Math.random() * 50000);
+  var done = Number(getStore(STORAGE_KEYS.completions) || 0);
+  var total = base + done;
+  countUp($('#homeCount'), total, 1500, function (v) {
+    return '已有 ' + v.toLocaleString('zh-CN') + ' 人完成测试 ✨';
+  });
+}
+
+/* ============================================================
+   答题页：进度、题目、选项、雷达图
+   ============================================================ */
+var testState = { answers: [], index: 0 };
+var radarState = { cur: [50, 50, 50, 50], raf: null };
+
+function initTest() {
+  var root = $('#page-test');
+  if (!root) return;
+
+  testState.answers = getStore(STORAGE_KEYS.answers) || Array(QUESTIONS.length).fill(null);
+  if (testState.answers.length !== QUESTIONS.length) {
+    testState.answers = Array(QUESTIONS.length).fill(null);
+  }
+  var saved = getStore(STORAGE_KEYS.current);
+  testState.index = (typeof saved === 'number' && saved >= 0 && saved < QUESTIONS.length) ? saved : 0;
+
+  // 滑片指示器：随选中项滑动的高级感选项条
+  var ind = document.createElement('span');
+  ind.className = 'opt-indicator';
+  $('#options').appendChild(ind);
+  testState.indicator = ind;
+  window.addEventListener('resize', positionIndicator);
+
+  bindTestEvents();
+  renderQuestion(testState.index);
+  updateProgress();
+  updateLivePreview();
+
+  // 雷达图初始绘制（用当前已答数据）
+  var pcts = pctFromAnswers(testState.answers);
+  radarState.cur = pcts.slice();
+  drawRadar(pcts, false);
+}
+
+function bindTestEvents() {
+  $('#prevBtn').addEventListener('click', function () {
+    if (testState.index > 0) { testState.index--; renderQuestion(testState.index); updateProgress(); }
+  });
+  $('#nextBtn').addEventListener('click', function () {
+    if (testState.answers[testState.index] === null) { toast('先选一个答案再继续哦 😉'); return; }
+    if (testState.index === QUESTIONS.length - 1) { finishTest(); return; }
+    testState.index++;
+    renderQuestion(testState.index);
+    updateProgress();
+  });
+  $('#resetLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    if (!confirm('确定要清空进度、重新开始吗？')) return;
+    clearTestData();
+    testState.answers = Array(QUESTIONS.length).fill(null);
+    testState.index = 0;
+    renderQuestion(0);
+    updateProgress();
+    toast('已重新开始');
+  });
+}
+
+function renderQuestion(i) {
+  var q = QUESTIONS[i];
+  $('#qNum').textContent = '第 ' + (i + 1) + ' 题';
+  $('#qText').textContent = q.text;
+  $('#qCurrent').textContent = i + 1;
+
+  // 重放卡片弹出动画
+  var card = $('.q-card');
+  card.style.animation = 'none';
+  void card.offsetWidth; // 强制 reflow 以重启动画
+  card.style.animation = '';
+
+  var opts = $('#options');
+  opts.innerHTML = '';
+  SCALE.forEach(function (s) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'opt';
+    btn.setAttribute('data-val', s.val);
+    btn.innerHTML = s.label + '<span class="opt-tag">' + s.tag + '</span>';
+    if (testState.answers[i] === s.val) btn.classList.add('selected');
+    btn.addEventListener('click', function () { selectOption(s.val); });
+    opts.appendChild(btn);
+  });
+  // 重新挂载滑片指示器（innerHTML 重建会把它清掉）
+  if (testState.indicator) opts.appendChild(testState.indicator);
+
+  // 上一题按钮：第一题隐藏
+  $('#prevBtn').style.visibility = i === 0 ? 'hidden' : 'visible';
+  // 下一题按钮：最后一题变“查看结果”
+  $('#nextBtn').textContent = i === QUESTIONS.length - 1 ? '查看结果 ✨' : '下一题 →';
+
+  positionIndicator();
+}
+
+function selectOption(val) {
+  testState.answers[testState.index] = val;
+  setStore(STORAGE_KEYS.answers, testState.answers);
+  setStore(STORAGE_KEYS.current, testState.index);
+  $$('.opt').forEach(function (b) { b.classList.toggle('selected', Number(b.getAttribute('data-val')) === val); });
+  positionIndicator();
+  updateProgress();
+  animateRadarTo(pctFromAnswers(testState.answers));
+}
+
+/* 把滑片指示器定位到当前选中项 */
+function positionIndicator() {
+  var opts = $('#options');
+  var ind = testState.indicator;
+  if (!opts || !ind) return;
+  var sel = opts.querySelector('.opt.selected');
+  if (!sel) { ind.style.opacity = '0'; return; }
+  var c = opts.getBoundingClientRect();
+  var b = sel.getBoundingClientRect();
+  ind.style.opacity = '1';
+  ind.style.left = (b.left - c.left) + 'px';
+  ind.style.top = (b.top - c.top) + 'px';
+  ind.style.width = b.width + 'px';
+  ind.style.height = b.height + 'px';
+}
+
+function updateProgress() {
+  var done = answeredCount(testState.answers);
+  $('#progressFill').style.width = (done / QUESTIONS.length * 100) + '%';
+  $('#qDone').textContent = '已完成 ' + done + ' 题';
+  updateLivePreview();
+}
+
+/* ---------- 实时画像预览（答题页底部内容区） ---------- */
+function dimAnswered(answers, dim) {
+  var n = 0;
+  QUESTIONS.forEach(function (q, i) {
+    if (q.dim === dim && answers[i] !== null && answers[i] !== undefined) n++;
+  });
+  return n;
+}
+
+function buildLiveBars() {
+  var wrap = $('#liveBars');
+  if (!wrap || wrap.children.length) return;
+  DIMS.forEach(function (dim) {
+    var row = document.createElement('div');
+    row.className = 'live-bar';
+    row.innerHTML =
+      '<span class="lb-label">' + DIM_LABELS[dim] + '</span>' +
+      '<div class="lb-track"><i class="lb-mid"></i><i class="lb-fill"></i></div>' +
+      '<span class="lb-val">50%</span>';
+    wrap.appendChild(row);
+  });
+}
+
+function updateLivePreview() {
+  var panel = $('#livePanel');
+  if (!panel) return;
+  buildLiveBars();
+
+  var res = computeResult(testState.answers);
+  var done = answeredCount(testState.answers);
+
+  // 迷你四维条：宽度 = 次字母极占比（50% 为中立）
+  $$('#liveBars .live-bar').forEach(function (row, i) {
+    var pctB = res.dims[DIMS[i]].pctB;
+    row.querySelector('.lb-fill').style.width = pctB + '%';
+    row.querySelector('.lb-val').textContent = pctB + '%';
+  });
+
+  // 实时倾向字母（未答维度显示 ?）
+  var letters = DIMS.map(function (dim) {
+    return dimAnswered(testState.answers, dim) > 0 ? res.dims[dim].letter : '?';
+  });
+
+  // 关键词云 + 助手气泡
+  var chips = $('#liveChips');
+  chips.innerHTML = '';
+  var msg = bubbleMsg(done);
+  var allAnswered = DIMS.every(function (dim) { return dimAnswered(testState.answers, dim) > 0; });
+
+  if (allAnswered && res.type) {
+    $('#liveLetters').textContent = res.letters.split('').join(' · ');
+    res.type.tags.slice(0, 4).forEach(function (tag) {
+      var s = document.createElement('span');
+      s.className = 'live-chip';
+      s.textContent = tag;
+      chips.appendChild(s);
+    });
+    msg += ' 目前最像「' + res.type.zh + '」';
+  } else {
+    $('#liveLetters').textContent = letters.join(' · ');
+    var ghost = document.createElement('span');
+    ghost.className = 'live-chip ghost';
+    ghost.textContent = done === 0 ? '答几题后，这里会浮现你的人格关键词' : '继续作答，画像越来越清晰…';
+    chips.appendChild(ghost);
+  }
+
+  $('#liveBubble').textContent = msg;
+}
+
+function bubbleMsg(done) {
+  if (done === 0) return '嘘——没有标准答案，凭第一直觉选 ✨';
+  if (done < 6) return '不错，你已经有一点点倾向了～';
+  if (done < 12) return '雷达图正在悄悄变形状……';
+  if (done < 18) return '过半啦！你的画像越来越清晰了 👀';
+  if (done < 24) return '最后一公里，稳住！';
+  return '收集完毕，准备揭晓！';
+}
+
+function finishTest() {
+  var res = computeResult(testState.answers);
+  setStore(STORAGE_KEYS.result, res);
+  navigate('result.html');
+}
+
+/* ---------- 雷达图（Canvas） ---------- */
+function pctFromAnswers(answers) {
+  var temp = computeResult(answers);
+  return DIMS.map(function (d) { return temp.dims[d].pctB; });
+}
+
+function drawRadar(pcts, withDots) {
+  var canvas = $('#radar');
+  if (!canvas) return;
+  var dpr = window.devicePixelRatio || 1;
+  var size = 230;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  var ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  var cx = size / 2, cy = size / 2, R = size / 2 - 30;
+  var angles = [(-90), 0, 90, 180].map(function (deg) { return deg * Math.PI / 180; });
+
+  ctx.clearRect(0, 0, size, size);
+
+  // 网格环
+  [25, 50, 75, 100].forEach(function (ring) {
+    ctx.beginPath();
+    for (var a = 0; a <= angles.length; a++) {
+      var ang = angles[a % angles.length];
+      var x = cx + Math.cos(ang) * (ring / 100) * R;
+      var y = cy + Math.sin(ang) * (ring / 100) * R;
+      a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(108, 99, 255, 0.14)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // 轴线
+  angles.forEach(function (ang, i) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(ang) * R, cy + Math.sin(ang) * R);
+    ctx.strokeStyle = 'rgba(108, 99, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // 轴标签
+    var lx = cx + Math.cos(ang) * (R + 18);
+    var ly = cy + Math.sin(ang) * (R + 18);
+    ctx.font = '700 12px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#6C63FF';
+    ctx.fillText(DIM_LABELS[DIMS[i]], lx, ly);
+  });
+
+  // 数据多边形（带辉光）
+  var grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, 'rgba(108, 99, 255, 0.55)');
+  grad.addColorStop(1, 'rgba(0, 210, 211, 0.45)');
+
+  ctx.beginPath();
+  pcts.forEach(function (p, i) {
+    var x = cx + Math.cos(angles[i]) * (p / 100) * R;
+    var y = cy + Math.sin(angles[i]) * (p / 100) * R;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#6C63FF';
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = 'rgba(108, 99, 255, 0.65)';
+  ctx.shadowBlur = 14;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 数据点
+  if (withDots !== false) {
+    pcts.forEach(function (p, i) {
+      var x = cx + Math.cos(angles[i]) * (p / 100) * R;
+      var y = cy + Math.sin(angles[i]) * (p / 100) * R;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.shadowColor = 'rgba(108, 99, 255, 0.8)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#6C63FF';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }
+}
+
+/* 雷达图补间动画：350ms 从当前值平滑过渡到目标值 */
+function animateRadarTo(target) {
+  var from = radarState.cur.slice();
+  var t0 = null;
+  var duration = 350;
+
+  function step(ts) {
+    if (t0 === null) t0 = ts;
+    var k = Math.min(1, (ts - t0) / duration);
+    var eased = 1 - Math.pow(1 - k, 3); // easeOutCubic
+    var now = from.map(function (v, i) { return v + (target[i] - v) * eased; });
+    radarState.cur = now;
+    drawRadar(now, true);
+    if (k < 1) radarState.raf = requestAnimationFrame(step);
+    else radarState.raf = null;
+  }
+  if (radarState.raf) cancelAnimationFrame(radarState.raf);
+  radarState.raf = requestAnimationFrame(step);
+}
+
+/* ============================================================
+   结果页：类型、仪表盘、描述、分享、搭档、彩蛋
+   ============================================================ */
+function initResult() {
+  var root = $('#page-result');
+  if (!root) return;
+
+  var res = getStore(STORAGE_KEYS.result);
+  var answers = getStore(STORAGE_KEYS.answers);
+  if (!res && answers) res = computeResult(answers);
+  if (!res || answeredCount(answers || []) === 0) {
+    location.href = 'index.html';
+    return;
+  }
+
+  // 本地完成人数 +1
+  setStore(STORAGE_KEYS.completions, (Number(getStore(STORAGE_KEYS.completions) || 0)) + 1);
+
+  if (res.easterEgg) {
+    $('#resultMain').style.display = 'none';
+    $('#easterCard').style.display = 'block';
+    bindEasterButtons();
+    return;
+  }
+
+  renderResult(res);
+}
+
+function renderResult(res) {
+  var t = res.type;
+  if (!t) return;
+
+  var extra = TYPE_EXTRA[res.letters] || {};
+  var growth = TYPE_GROWTH[res.letters] || {};
+
+  // 类型主题色（对应 16P 四大气质群组配色）
+  var rm = $('#resultMain');
+  if (rm) {
+    rm.style.setProperty('--tcolor', extra.color || '#6C63FF');
+    rm.style.setProperty('--tcolor-soft', extra.soft || '#E7E4FF');
+  }
+
+  // 六边形类型徽章（内嵌四字母 + 角落 emoji）
+  var emb = $('#typeEmblem');
+  if (emb) {
+    emb.innerHTML = emblemSVG(res.letters, extra.color) +
+      '<span class="emblem-emoji">' + t.emoji + '</span>';
+  }
+
+  $('#typeZh').textContent = t.zh;
+  $('#typeEn').textContent = extra.en || '';
+  $('#typeQuote').textContent = extra.tagline ? '「' + extra.tagline + '」' : '';
+
+  var tags = $('#tags');
+  tags.innerHTML = '';
+  t.tags.forEach(function (tag) {
+    var s = document.createElement('span');
+    s.className = 'tag';
+    s.textContent = tag;
+    tags.appendChild(s);
+  });
+
+  $('#descText').textContent = t.desc;
+  $('#factText').textContent = t.fact;
+
+  renderTraitBars(res);
+  renderReportSections(res);
+
+  $('#retestBtn').addEventListener('click', function () {
+    clearTestData();
+    navigate('test.html');
+  });
+  $('#shareBtn').addEventListener('click', function () { buildShareCard(res); });
+  $('#partnerBtn').addEventListener('click', function () { openPartner(res); });
+  $('#copyBtn').addEventListener('click', function () { copyShareText(res); });
+}
+
+/* ---------- 六边形类型徽章（16P 风格） ---------- */
+function emblemSVG(letters, color) {
+  return '<svg viewBox="0 0 120 120" class="emblem-svg" aria-hidden="true">' +
+    '<defs><linearGradient id="embGrad" x1="0" y1="0" x2="1" y2="1">' +
+    '<stop offset="0" stop-color="' + color + '"/>' +
+    '<stop offset="1" stop-color="#00D2D3"/>' +
+    '</linearGradient></defs>' +
+    '<polygon points="60,6 108,33 108,87 60,114 12,87 12,33" fill="url(#embGrad)" stroke="rgba(255,255,255,0.55)" stroke-width="2"/>' +
+    '<polygon points="60,16 100,38 100,82 60,104 20,82 20,38" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>' +
+    '<text x="60" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="24" font-weight="800" ' +
+    'fill="#FFFFFF" letter-spacing="2">' + letters + '</text>' +
+    '</svg>';
+}
+
+/* ---------- 特质总览（16P 风格双向条） ---------- */
+function renderTraitBars(res) {
+  var panel = $('#traitPanel');
+  if (!panel) return;
+  panel.innerHTML = '';
+
+  DIMS.forEach(function (dim) {
+    var d = res.dims[dim];
+    var dominant = d.pctB >= 50 ? d.B : d.A;
+    var domPct = d.pctB >= 50 ? d.pctB : 100 - d.pctB;
+
+    var row = document.createElement('div');
+    row.className = 'trait-row';
+    row.innerHTML =
+      '<span class="trait-label">' + DIM_FULL[dim][0] + ' <b>' + d.A + '</b></span>' +
+      '<div class="trait-mid">' +
+        '<div class="trait-track"><i class="trait-fill"></i><i class="trait-knob"></i></div>' +
+        '<div class="trait-pct"><b>' + dominant + '</b> ' + domPct + '%' +
+          (d.amb ? ' <i class="trait-amb">倾向模糊</i>' : '') +
+        '</div>' +
+      '</div>' +
+      '<span class="trait-label right">' + DIM_FULL[dim][1] + ' <b>' + d.B + '</b></span>';
+    panel.appendChild(row);
+
+    // 填充与游标动画
+    var fill = row.querySelector('.trait-fill');
+    var knob = row.querySelector('.trait-knob');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        fill.style.width = d.pctB + '%';
+        knob.style.left = d.pctB + '%';
+      });
+    });
+  });
+}
+
+/* ---------- 报告分区（优势/劣势/职业/人生，16P 风格卡片流） ---------- */
+function duoCard(a, b) {
+  return '<div class="result-duo">' + a + b + '</div>';
+}
+
+function renderReportSections(res) {
+  var wrap = $('#reportSections');
+  if (!wrap) return;
+  var g = TYPE_GROWTH[res.letters] || {};
+  var extra = TYPE_EXTRA[res.letters] || {};
+  var html = '';
+
+  // 1. 优势 / 劣势
+  html += duoCard(
+    gcCard('⚡ 优势清单', gcBarRows(g.strengths, 'up', [90, 82, 74, 68])),
+    gcCard('⚠️ 注意点', gcBarRows(g.weaknesses, 'down', [72, 64, 56]))
+  );
+
+  // 2. 内在驱动力
+  html += gcCard('🧬 内在驱动力', '<p class="gc-text">' + (g.drive || '') + '</p>');
+
+  // 3. 隐藏超能力 / 进阶修炼
+  html += duoCard(
+    gcCard('🦸 隐藏超能力', '<p class="gc-text">' + (extra.superpower || '') + '</p>'),
+    gcCard('🧗 进阶修炼', '<p class="gc-text">' + (extra.growth || '') + '</p>')
+  );
+
+  // 4. 职业规划
+  html += gcCard('💼 职业规划',
+    '<p class="gc-text">' + (g.workStyle || '') + '</p>' +
+    '<h5 class="gc-sub">🎯 推荐岗位</h5>' + gcChips(g.roles) +
+    '<h5 class="gc-sub">📈 职业建议</h5>' + gcNumList(g.careerTips));
+
+  // 5. 人生指导
+  html += gcCard('🧭 人生指导',
+    '<h5 class="gc-sub">🌱 成长方向</h5>' + gcNumList(g.lifeTips) +
+    '<h5 class="gc-sub">🤝 人际相处</h5><p class="gc-text">' + (g.relationTip || '') + '</p>' +
+    '<p class="gc-quote">「' + (extra.tagline || '') + '」</p>');
+
+  wrap.innerHTML = html;
+
+  // 进度条生长动画
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      var fills = wrap.querySelectorAll('.gc-fill');
+      Array.prototype.forEach.call(fills, function (f) {
+        f.style.width = f.getAttribute('data-lv') + '%';
+      });
+    });
+  });
+}
+
+/* ---------- 分享人格卡片（原生 Canvas 绘制 PNG） ---------- */
+function buildShareCard(res) {
+  var t = res.type;
+  if (!t) { toast('先测出结果才能保存哦'); return; }
+
+  var W = 1080, H = 1440;
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  var ctx = cv.getContext('2d');
+  var font = '"PingFang SC","Microsoft YaHei",sans-serif';
+
+  // 背景渐变
+  var bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#6C63FF');
+  bg.addColorStop(0.55, '#8B83FF');
+  bg.addColorStop(1, '#4FC3F7');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // 装饰圆
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.arc(940, 180, 200, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(120, 1250, 260, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.1;
+  ctx.beginPath(); ctx.arc(560, 720, 430, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // 顶栏
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = '600 34px ' + font;
+  ctx.fillText('✦ MBTI 人格实验室 ✦', W / 2, 130);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = '400 30px ' + font;
+  ctx.fillText('我的 MBTI 人格', W / 2, 185);
+
+  // 类型字母（渐变字）
+  ctx.font = '800 210px Inter,' + font;
+  var lg = ctx.createLinearGradient(0, 340, W, 560);
+  lg.addColorStop(0, '#FFFFFF');
+  lg.addColorStop(1, '#C8EFFF');
+  ctx.fillStyle = lg;
+  ctx.fillText(res.letters, W / 2, 520);
+
+  // emoji + 称号
+  ctx.font = '90px serif';
+  ctx.fillText(t.emoji, W / 2, 650);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '700 84px "KaiTi","STKaiti",cursive,' + font;
+  ctx.fillText('「' + t.zh + '」', W / 2, 760);
+
+  // 关键词 chips
+  var chipY = 850;
+  t.tags.forEach(function (tag, i) {
+    ctx.font = '600 30px ' + font;
+    var tw = ctx.measureText(tag).width + 56;
+    var x = W / 2 + (i - (t.tags.length - 1) / 2) * (tw + 24);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    roundRect(ctx, x - tw / 2, chipY - 22, tw, 44, 22);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(tag, x, chipY + 4);
+  });
+
+  // 四维占比条
+  var barY = 960, barW = 640, barH = 26, barX = (W - barW) / 2;
+  DIMS.forEach(function (dim, i) {
+    var d = res.dims[dim];
+    var y = barY + i * 92;
+    ctx.textAlign = 'left';
+    ctx.font = '600 32px ' + font;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(d.A + ' / ' + d.B, barX, y);
+
+    // 底条
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    roundRect(ctx, barX, y + 12, barW, barH, 13);
+    ctx.fill();
+    // 填充（以 pctB 为 B 极占比）
+    var fw = Math.max(6, barW * d.pctB / 100);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    roundRect(ctx, barX, y + 12, fw, barH, 13);
+    ctx.fill();
+    // 百分比
+    ctx.textAlign = 'right';
+    ctx.font = '600 30px ' + font;
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillText(d.A + ' ' + (100 - d.pctB) + '%  ·  ' + d.B + ' ' + d.pctB + '%', W - barX, y);
+  });
+
+  // 底部（与四维占比条拉开间距，底部留白均衡）
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = '500 32px ' + font;
+  ctx.fillText('24 道题 · 约 5 分钟 · 发现你的人格密码', W / 2, H - 116);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '400 26px ' + font;
+  ctx.fillText('MBTI 仅供参考，人格是流动的，别让标签定义你 😉', W / 2, H - 62);
+
+  // 下载
+  try {
+    var url = cv.toDataURL('image/png');
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = '我的MBTI人格卡-' + res.letters + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast('人格卡片已保存 🎉');
+  } catch (e) {
+    toast('保存失败，请换个浏览器试试');
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/* ---------- 复制分享文案 ---------- */
+function copyShareText(res) {
+  var t = res.type;
+  var extra = TYPE_EXTRA[res.letters] || {};
+  var text = '我的 MBTI 是 ' + res.letters + '（' + t.zh + '）！' +
+    (extra.tagline ? extra.tagline + ' ' : '') +
+    '你也来测测看，24 题 5 分钟就能知道～';
+  var ok = function (b) { toast(b ? '分享文案已复制 📋' : '复制失败，请手动复制'); };
+
+  function legacy() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var done = false;
+    try { done = document.execCommand('copy'); } catch (e) { done = false; }
+    document.body.removeChild(ta);
+    ok(done);
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { ok(true); }, legacy);
+  } else {
+    legacy();
+  }
+}
+
+/* ============================================================
+   报告分区构建工具（图标卡片 / chips / 编号清单 / 进度条）
+   ============================================================ */
+function gcCard(title, inner) {
+  return '<div class="gc-card"><h4>' + title + '</h4>' + inner + '</div>';
+}
+function gcChips(items) {
+  return '<div class="gc-chips">' + (items || []).map(function (s) {
+    return '<span class="gc-chip">' + s + '</span>';
+  }).join('') + '</div>';
+}
+function gcNumList(items) {
+  return '<ol class="gc-list">' + (items || []).map(function (s, i) {
+    return '<li><span class="gc-num">' + (i + 1) + '</span><span class="gc-li-text">' + s + '</span></li>';
+  }).join('') + '</ol>';
+}
+function gcBarRows(items, kind, levels) {
+  var ico = kind === 'down' ? '⚠️' : '⚡';
+  return '<ul class="gc-list">' + (items || []).map(function (s, i) {
+    var lv = levels[i] || 70;
+    return '<li class="gc-bar-row">' +
+      '<span class="gc-ico">' + ico + '</span>' +
+      '<div class="gc-bar-box"><span class="gc-bar-text">' + s + '</span>' +
+      '<div class="gc-bar"><i class="gc-fill ' + kind + '" data-lv="' + lv + '"></i></div></div>' +
+      '<b class="gc-bar-val">' + lv + '</b></li>';
+  }).join('') + '</ul>';
+}
+
+/* ---------- 最佳搭档弹窗 ---------- */
+function openPartner(res) {
+  var t = res.type;
+  if (!t) return;
+  var p = TYPES[t.partner];
+  if (!p) return;
+
+  $('#partnerEmoji').textContent = p.emoji;
+  $('#partnerType').textContent = t.partner;
+  $('#partnerZh').textContent = p.zh;
+  $('#partnerText').innerHTML =
+    '你们在最关键的维度上互补：<b>' + t.zh + '</b> 的' + t.trait + '，' +
+    '恰好是 <b>' + p.zh + '</b> 最需要的另一块拼图。<br><br>' +
+    p.blurb + '<br><br>TA 会点亮你忽略的那一面，你也会让 TA 看见世界的另一面。';
+
+  $('#partnerModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePartner() {
+  $('#partnerModal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function bindModalEvents() {
+  var closeBtn = $('#partnerClose');
+  var modal = $('#partnerModal');
+  if (!closeBtn || !modal) return; // 弹窗仅存在于结果页
+  closeBtn.addEventListener('click', closePartner);
+  modal.addEventListener('click', function (e) {
+    if (e.target === this) closePartner();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closePartner();
+  });
+}
+
+/* ---------- 彩蛋页 ---------- */
+function bindEasterButtons() {
+  $('#easterRetest').addEventListener('click', function () {
+    clearTestData();
+    navigate('test.html');
+  });
+  $('#easterHome').addEventListener('click', function () {
+    clearTestData();
+    navigate('index.html');
+  });
+}
+
+/* ============================================================
+   页面分发
+   ============================================================ */
+function init() {
+  if (typeof document === 'undefined') return;
+  initTransitions();
+  initCursorGlow();
+  var id = document.body && document.body.id;
+  if (id === 'page-home') initHome();
+  else if (id === 'page-test') initTest();
+  else if (id === 'page-result') initResult();
+  bindModalEvents();
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+}
+
+/* 供 Node 自动化测试导出 */
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    QUESTIONS: QUESTIONS, TYPES: TYPES, TYPE_EXTRA: TYPE_EXTRA, TYPE_GROWTH: TYPE_GROWTH,
+    SCALE: SCALE, DIMS: DIMS,
+    computeResult: computeResult, init: init
+  };
+}

@@ -1,93 +1,94 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MBTI 人格测试结果</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>你的人格密码 · MBTI 人格测试</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="card" id="resultContent">
-        <!-- Header: dynamically colored -->
-        <div class="type-header" id="typeHeader">
-            <div class="type-badge" id="typeBadge">分析家</div>
-            <div class="type-code" id="typeCode">INTJ</div>
-            <div class="type-name" id="typeName">建筑师 · 分析家</div>
-            <div class="slogan" id="slogan">“深谋远虑的战略家，永远在构建更好的系统。”</div>
+<body id="page-result">
+  <div class="noise" aria-hidden="true"></div>
+  <main class="result-wrap">
+
+    <!-- ===== 正常结果 ===== -->
+    <section id="resultMain">
+      <!-- 头部：六边形徽章 + 类型名（16P 风格） -->
+      <header class="result-head rise">
+        <div class="emblem" id="typeEmblem"></div>
+        <h1 class="type-zh" id="typeZh">战略家</h1>
+        <p class="type-en" id="typeEn">Strategist</p>
+        <p class="type-quote" id="typeQuote"></p>
+        <div class="tags" id="tags"></div>
+      </header>
+
+      <!-- 特质总览（16P 风格双向条） -->
+      <h3 class="section-title rise">✦ 特质总览 ✦</h3>
+      <div class="trait-panel rise" id="traitPanel"></div>
+
+      <!-- 关于你 -->
+      <div class="desc-card rise">
+        <h3>📖 关于你</h3>
+        <p class="desc-text" id="descText"></p>
+      </div>
+
+      <!-- 报告分区（优势/劣势/驱动力/超能力/职业/人生，JS 渲染） -->
+      <div id="reportSections"></div>
+
+      <!-- 冷知识 -->
+      <div class="fact-card rise">
+        <span class="fact-icon">💡</span>
+        <div>
+          <h3>冷知识</h3>
+          <p id="factText"></p>
         </div>
+      </div>
 
-        <div class="content">
-            <!-- Profile -->
-            <section class="section">
-                <h2 class="section-title">性格素描</h2>
-                <div class="profile-text" id="profileText"></div>
-            </section>
+      <!-- 操作 -->
+      <div class="actions rise">
+        <button type="button" class="btn btn-ghost" id="retestBtn">↺ 重新测试</button>
+        <button type="button" class="btn btn-primary" id="shareBtn">📸 保存我的结果</button>
+        <button type="button" class="btn btn-ghost" id="partnerBtn">💞 查看最佳搭档</button>
+      </div>
 
-            <!-- Dimension Scores -->
-            <section class="section">
-                <h2 class="section-title">维度得分</h2>
-                <div class="score-bars" id="scoreBars"></div>
-            </section>
+      <div class="share-cta rise">
+        <p>把这结果发给朋友，看看 TA 是哪一种人格 👀</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="copyBtn">📋 复制分享文案</button>
+      </div>
 
-            <!-- Two columns: strengths & blind spots -->
-            <div class="two-col">
-                <section class="section">
-                    <h2 class="section-title">独特优势</h2>
-                    <ul class="strength-list" id="strengthList"></ul>
-                </section>
-                <section class="section">
-                    <h2 class="section-title">潜在盲点</h2>
-                    <ul class="blind-list" id="blindList"></ul>
-                </section>
-            </div>
+      <p class="result-note">MBTI 是偏好参考，不是科学判刑；人格是流动的，别让标签定义你 😉</p>
+    </section>
 
-            <!-- Career suggestions -->
-            <section class="section">
-                <h2 class="section-title">适宜领域</h2>
-                <div class="career-pills" id="careerPills"></div>
-                <p style="margin-top: 0.9rem; font-size: 0.88rem; color: #4e627c;">※ 以上仅为常见方向，每个人都是独特的，请结合兴趣与经历综合考量。</p>
-            </section>
+    <!-- ===== 彩蛋：四维全模糊 ===== -->
+    <section class="easter-card" id="easterCard" style="display:none;">
+      <div class="e-emoji">🌀</div>
+      <h2>你是个复杂的人，MBTI 框不住你</h2>
+      <p>
+        你的答案在四个维度上都"雨露均沾"——要么你对每个方向都感同身受，
+        要么你在疯狂端水。这恰恰说明：人格不是标签，而是一片流动的风景。
+        去拥抱你的复杂性吧，顺便……可以再测一次图个乐 😝
+      </p>
+      <div class="actions" style="margin-top:0;">
+        <button type="button" class="btn btn-primary" id="easterRetest">↺ 再测一次</button>
+        <button type="button" class="btn btn-ghost" id="easterHome">🏠 返回首页</button>
+      </div>
+    </section>
+  </main>
 
-            <!-- Share -->
-            <section class="section">
-                <h2 class="section-title">分享结果</h2>
-                <div class="share-section">
-                    <button class="btn btn-primary" onclick="copyResultText()">复制结果文字</button>
-                    <button class="btn btn-secondary" onclick="shareResult()">分享结果</button>
-                </div>
-            </section>
-
-            <!-- Footer -->
-            <hr>
-            <div class="meta-info">
-                <span><strong id="metaTypeCode">INTJ</strong> · <span id="metaCategory">分析家</span></span>
-                <span>荣格心理学类型 · 仅供参考</span>
-            </div>
-
-            <div class="footnote">
-                <i>非官方MBTI</i> 本描述基于荣格心理学类型及公共模型开发，仅供参考与自我探索，不可替代专业心理测评或诊断。
-            </div>
-
-            <div class="bottom-nav">
-                <a href="javascript:void(0)" onclick="resetTest()">重新测评</a>
-                <span style="color: #cbdae7;">|</span>
-                <a href="index.html">返回首页</a>
-            </div>
-        </div>
+  <!-- 最佳搭档弹窗 -->
+  <div class="modal-mask" id="partnerModal">
+    <div class="modal-card">
+      <button type="button" class="m-close" id="partnerClose" aria-label="关闭">✕</button>
+      <div class="m-emoji" id="partnerEmoji">💞</div>
+      <div class="m-type" id="partnerType">ENFP</div>
+      <div class="m-zh" id="partnerZh">竞选者</div>
+      <p class="m-text" id="partnerText"></p>
     </div>
+  </div>
 
-    <!-- Error state (no result data) -->
-    <div class="card" id="errorState" style="display: none">
-        <div class="error-page">
-            <h2>还没有测试结果</h2>
-            <p>请先完成 MBTI 人格测试，再来查看你的性格解读。</p>
-            <a href="test.html" class="btn btn-primary btn-large">去测试</a>
-        </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
-
-    <script src="js/types-data.js"></script>
-    <script src="js/result.js"></script>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="script.js"></script>
 </body>
 </html>
