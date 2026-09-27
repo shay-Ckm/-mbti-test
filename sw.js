@@ -10,7 +10,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE_VERSION = 'mbti-v4.1.0';
+const CACHE_VERSION = 'mbti-v4.2.0';
 const CACHE_NAME = CACHE_VERSION;
 
 /* 预缓存清单（路径必须真实存在，静态契约测试会逐条校验） */
