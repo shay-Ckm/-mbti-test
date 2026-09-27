@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>你的人格密码 · MBTI 人格测试</title>
+  <meta name="description" content="MBTI 人格测试结果：类型、四维倾向与可靠度、优势与注意点、职业规划、关系社交、压力反应与成长清单。">
+  <meta name="theme-color" content="#3B2A86">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -24,9 +26,15 @@
         <div class="tags" id="tags"></div>
       </header>
 
-      <!-- 特质总览（16P 风格双向条） -->
+      <!-- 元信息（档位 / 题量 / 题库版本 / 一致性） -->
+      <div class="meta-bar rise" id="metaBar"></div>
+
+      <!-- 特质总览（双向条） -->
       <h3 class="section-title rise">✦ 特质总览 ✦</h3>
       <div class="trait-panel rise" id="traitPanel"></div>
+
+      <!-- 结果可靠度 -->
+      <div class="conf-panel rise" id="confPanel"></div>
 
       <!-- 关于你 -->
       <div class="desc-card rise">
@@ -36,6 +44,38 @@
 
       <!-- 报告分区（优势/劣势/驱动力/超能力/职业/人生，JS 渲染） -->
       <div id="reportSections"></div>
+
+      <!-- 关系与社交 -->
+      <section class="gc-card rise" id="relCard">
+        <h4>💞 关系与社交</h4>
+        <div class="rel-tabs" id="relTabs"></div>
+        <p class="gc-text rel-text" id="relText"></p>
+      </section>
+
+      <!-- 压力下的你 -->
+      <section class="gc-card rise" id="stressCard">
+        <h4>🌊 压力下的你</h4>
+        <div class="stress-grid" id="stressGrid"></div>
+      </section>
+
+      <!-- 更多画像 -->
+      <section class="gc-card rise" id="moreCard">
+        <h4>🔍 更多画像</h4>
+        <div class="more-grid" id="moreGrid"></div>
+      </section>
+
+      <!-- 成长清单（可勾选） -->
+      <section class="gc-card rise" id="checklistCard">
+        <h4>✅ 成长清单 <span class="cl-progress" id="clProgress">0 / 6 · 0%</span></h4>
+        <div class="checklist" id="checklist"></div>
+        <p class="gc-text cl-tip">勾选会保存在本机，随时回来继续打卡。</p>
+      </section>
+
+      <!-- 历史与复测对比 -->
+      <section class="gc-card rise" id="historyCard">
+        <h4>📈 你的测试历史</h4>
+        <div class="history" id="history"></div>
+      </section>
 
       <!-- 冷知识 -->
       <div class="fact-card rise">
@@ -49,7 +89,8 @@
       <!-- 操作 -->
       <div class="actions rise">
         <button type="button" class="btn btn-ghost" id="retestBtn">↺ 重新测试</button>
-        <button type="button" class="btn btn-primary" id="shareBtn">📸 保存我的结果</button>
+        <button type="button" class="btn btn-primary" id="shareBtn">📸 保存结果图片</button>
+        <button type="button" class="btn btn-ghost" id="shareNativeBtn">📤 分享给朋友</button>
         <button type="button" class="btn btn-ghost" id="partnerBtn">💞 查看最佳搭档</button>
       </div>
 
@@ -89,6 +130,8 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
+  <script src="data/questions.js"></script>
+  <script src="data/profile.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 逻辑测试 + DOM 冒烟测试
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 静态资源完整性检查
+        run: |
+          set -e
+          for f in index.html test.html result.html style.css script.js \
+                   data/questions.js data/profile.js README.md 开发文档.md \
+                   mbti-static.test.js mbti-logic.test.js mbti-smoke.test.js; do
+            test -f "$f" || { echo "缺少文件: $f"; exit 1; }
+          done
+          echo "静态资源完整"
+
+      - name: 静态契约测试（HTML ↔ JS ↔ CSS ↔ 数据）
+        run: node mbti-static.test.js
+
+      - name: 逻辑测试（题库结构 / 双档位 / 计分 / 置信度 / 一致性 / 数据完整性）
+        run: node mbti-logic.test.js
+
+      - name: DOM 冒烟测试（三页初始化与关键交互）
+        run: node mbti-smoke.test.js
+
+      - name: HTML 结构基本检查（页面根元素与数据脚本引入）
+        run: |
+          set -e
+          for f in index.html test.html result.html; do
+            grep -q 'data/questions.js' "$f" || { echo "$f 未引入题库数据"; exit 1; }
+            grep -q 'data/profile.js' "$f" || { echo "$f 未引入画像数据"; exit 1; }
+          done
+          grep -q 'id="page-home"' index.html
+          grep -q 'id="page-test"' test.html
+          grep -q 'id="page-result"' result.html
+          echo "HTML 结构检查通过"

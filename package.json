@@ -1,0 +1,17 @@
+{
+  "name": "mbti-personality-test",
+  "version": "2.0.0",
+  "private": true,
+  "description": "纯前端 MBTI 人格测试（双档位题库 24/60 题 · 置信度与一致性校验 · 完整测评报告）",
+  "keywords": ["mbti", "personality-test", "vanilla-js", "static-site"],
+  "license": "MIT",
+  "scripts": {
+    "test": "node mbti-static.test.js && node mbti-logic.test.js && node mbti-smoke.test.js",
+    "test:static": "node mbti-static.test.js",
+    "test:logic": "node mbti-logic.test.js",
+    "test:smoke": "node mbti-smoke.test.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

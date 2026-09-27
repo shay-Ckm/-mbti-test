@@ -17,3 +17,8 @@ people.json
 测试问题.txt
 百度翻译.py
 实施计划.md
+
+# 临时校验脚本（生成后即废弃）
+_verify_profile.js
+_temp_*.js
+check-*.js

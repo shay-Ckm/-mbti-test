@@ -13,11 +13,32 @@
 /* ================= 常量 ================= */
 
 var STORAGE_KEYS = {
-  answers: 'mbti_answers',
-  current: 'mbti_current',
+  answers: 'mbti_answers',        // { qid: 分值 }
+  current: 'mbti_current',        // 当前题目下标（在当前题序中的位置）
+  set: 'mbti_set',                // 本次题序（qid 数组，深度模式会随机化）
+  mode: 'mbti_mode',              // quick | deep
   result: 'mbti_result',
-  completions: 'mbti_completions'
+  completions: 'mbti_completions',
+  version: 'mbti_bank_version',   // 题库版本，用于迁移
+  history: 'mbti_history',        // 历史结果（最近 10 次）
+  checklist: 'mbti_checklist'     // 成长清单勾选状态
 };
+
+/* 档位配置：两档共用同一题库，仅题量与时长不同 */
+var MODES = {
+  quick: { key: 'quick', label: '快速测试', count: 24, time: '约 5 分钟',     desc: '24 题精选 · 快速得到结果，适合分享' },
+  deep:  { key: 'deep',  label: '深度测试', count: 60, time: '约 10-12 分钟', desc: '60 题全覆盖 · 精度更高，含一致性校验' }
+};
+var DEFAULT_MODE = 'deep';
+
+/* 题库访问：题目数据在 data/questions.js（Node 测试通过 global 注入） */
+function questionBank() {
+  return (typeof QUESTIONS !== 'undefined' && QUESTIONS && QUESTIONS.length) ? QUESTIONS : [];
+}
+function bankVersion() {
+  return (typeof BANK_VERSION === 'number') ? BANK_VERSION : 0;
+}
+function modeConf(key) { return MODES[key] || MODES[DEFAULT_MODE]; }
 
 /* 作答量表：4 点迫选（无中立），强同意=3 … 强不同意=-3 */
 var SCALE = [
@@ -32,38 +53,12 @@ var DIMS = ['EI', 'SN', 'TF', 'JP'];
 var DIM_LABELS = { EI: 'E·I', SN: 'S·N', TF: 'T·F', JP: 'J·P' };
 var DIM_FULL = { EI: ['外向', '内向'], SN: ['实感', '直觉'], TF: ['思考', '情感'], JP: ['判断', '感知'] };
 
-/* ================= 题库（24 题） =================
-   dim: 所属维度；dir: +1 表示同意本题 → 偏向次字母极（I/N/F/P），
-                       -1 表示同意本题 → 偏向首字母极（E/S/T/J）     */
-var QUESTIONS = [
-  { dim: 'EI', dir: -1, text: '周末我更愿意和朋友一起外出活动，而不是宅在家里' },
-  { dim: 'EI', dir: -1, text: '在社交场合，我通常是主动发起对话的那个人' },
-  { dim: 'EI', dir: +1, text: '独处一段时间后，我更容易恢复精力' },
-  { dim: 'EI', dir: -1, text: '我喜欢成为人群中的焦点' },
-  { dim: 'EI', dir: -1, text: '我更倾向于通过和别人交谈来理清自己的思路' },
-  { dim: 'EI', dir: +1, text: '比起热闹的大聚会，我更喜欢在小圈子里深度交流' },
-
-  { dim: 'SN', dir: -1, text: '我更关注事物的具体细节，而不是整体印象' },
-  { dim: 'SN', dir: +1, text: '我经常思考未来的各种可能性' },
-  { dim: 'SN', dir: -1, text: '我倾向于相信眼见为实的信息' },
-  { dim: 'SN', dir: +1, text: '我喜欢探索抽象的概念和理论' },
-  { dim: 'SN', dir: -1, text: '我更注重当下的体验，而不是未来的规划' },
-  { dim: 'SN', dir: +1, text: '我经常产生天马行空的联想' },
-
-  { dim: 'TF', dir: -1, text: '我做决定时主要依赖逻辑分析' },
-  { dim: 'TF', dir: +1, text: '做决策时，我会优先考虑他人的感受' },
-  { dim: 'TF', dir: -1, text: '争论时，我更在乎谁对谁错，而不是气氛是否融洽' },
-  { dim: 'TF', dir: +1, text: '我容易被感人的故事打动' },
-  { dim: 'TF', dir: -1, text: '我更擅长理性分析，而不是情感表达' },
-  { dim: 'TF', dir: +1, text: '我认为和谐的氛围比“正确”的答案更重要' },
-
-  { dim: 'JP', dir: -1, text: '我喜欢提前制定详细的计划' },
-  { dim: 'JP', dir: +1, text: '我更享受随性而为的生活方式' },
-  { dim: 'JP', dir: -1, text: '我的生活空间通常整洁有序' },
-  { dim: 'JP', dir: +1, text: '我喜欢同时开展多个项目' },
-  { dim: 'JP', dir: -1, text: '截止日期能有效推动我完成任务' },
-  { dim: 'JP', dir: +1, text: '比起按部就班，我更喜欢灵活应对' }
-];
+/* ================= 题库（外部数据文件 data/questions.js） =================
+   双档位共用同一题库：
+   - 快速测试 quick：每维 6 题（极性 3:3），共 24 题
+   - 深度测试 deep ：每维 15 题（极性 8:7），共 60 题
+   每题字段：dim 维度 / dir 作答方向 / facet 侧面 / quick 是否快速档 / pair 一致性配对
+   浏览器按 <script> 顺序加载 data/questions.js；Node 测试在 require 本文件前注入 global.QUESTIONS。 */
 
 /* ================= 16 型人格资料 ================= */
 var TYPES = {
@@ -413,54 +408,150 @@ function clearTestData() {
   try {
     localStorage.removeItem(STORAGE_KEYS.answers);
     localStorage.removeItem(STORAGE_KEYS.current);
+    localStorage.removeItem(STORAGE_KEYS.set);
+    localStorage.removeItem(STORAGE_KEYS.mode);
     localStorage.removeItem(STORAGE_KEYS.result);
   } catch (e) { /* ignore */ }
 }
 
+/* 题库版本迁移：版本不一致时清空旧答案与旧结果，避免误读
+   返回 true = 无需提示；false = 确有旧数据被清空（调用方提示"题库已升级"） */
+function ensureBankVersion() {
+  var saved = getStore(STORAGE_KEYS.version);
+  if (saved === bankVersion()) return true;
+
+  var hadData = false;
+  try {
+    hadData = !!(localStorage.getItem(STORAGE_KEYS.answers) || localStorage.getItem(STORAGE_KEYS.result));
+  } catch (e) { /* ignore */ }
+
+  try {
+    localStorage.removeItem(STORAGE_KEYS.answers);
+    localStorage.removeItem(STORAGE_KEYS.current);
+    localStorage.removeItem(STORAGE_KEYS.set);
+    localStorage.removeItem(STORAGE_KEYS.result);
+  } catch (e) { /* ignore */ }
+  setStore(STORAGE_KEYS.version, bankVersion());
+  return hadData ? false : true;
+}
+
+/* ================= 选题：双档位 =================
+   两档共用同一题库；深度档在维度块内随机顺序（抵消顺序效应），
+   快速档固定顺序（便于用户复测时对比）。                              */
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+function buildQuestionSet(modeKey) {
+  var conf = modeConf(modeKey);
+  var bank = questionBank();
+  var out = [];
+  DIMS.forEach(function (dim) {
+    var block = bank.filter(function (q) {
+      return q.dim === dim && (conf.key === 'quick' ? q.quick : true);
+    });
+    if (conf.key === 'deep') shuffle(block);
+    out = out.concat(block);
+  });
+  return out;
+}
+
 /* ================= 计分核心（纯函数，可测试） =================
-   输入：answers —— 长度 24 的数组，元素为 -3/-1/1/3 或 null（未答）
+   输入：answers —— { qid: -3|-1|1|3 }（未答的键缺省或为 null）
+        mode    —— 'quick' | 'deep'
    输出：{
-     letters: 'ESTJ',
-     dims: { EI: {A,B,score,pctB,letter,strength,amb}, ... },
-     easterEgg: bool（四维全部倾向模糊）,
-     type: TYPES[letters] 或 null
+     mode, modeLabel, bankVersion, letters,
+     dims: { EI: {A,B,score,pctB,letter,strength,amb,confidence,answered,total,label}, ... },
+     answered, consistencyIssues, overallConfidence,
+     easterEgg（四维全部倾向模糊）, type
    }                                                          */
-function computeResult(answers) {
-  var res = { letters: '', dims: {}, easterEgg: false, type: null };
+function computeResult(answers, mode) {
+  var bank = questionBank();
+  answers = answers || {};
+  var conf = modeConf(mode);
+  var res = {
+    mode: conf.key, modeLabel: conf.label, bankVersion: bankVersion(),
+    letters: '', dims: {}, easterEgg: false, type: null,
+    answered: 0, consistencyIssues: 0, overallConfidence: 0
+  };
   var allAmb = true;
+  var confSum = 0;
 
   DIMS.forEach(function (dim) {
     var A = dim[0];          // 首字母极（E/S/T/J）
     var B = dim[1];          // 次字母极（I/N/F/P）
-    var sumA = 0, cntA = 0, sumB = 0, cntB = 0;
+    var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0, total = 0;
 
-    QUESTIONS.forEach(function (q, i) {
-      var r = answers[i];
-      if (r === null || r === undefined || q.dim !== dim) return;
+    bank.forEach(function (q) {
+      if (q.dim !== dim) return;
+      total++;
+      var r = answers[q.id];
+      if (r === null || r === undefined) return;
+      answered++;
       if (q.dir > 0) { sumB += r; cntB++; } else { sumA += r; cntA++; }
     });
 
     var avgA = cntA ? sumA / cntA : 0;
     var avgB = cntB ? sumB / cntB : 0;
-    var score = (avgB - avgA) / 2;              // ∈ [-3, 3]
-    var pctB = Math.round(50 + (score / 3) * 50); // ∈ [0, 100]，50 为中立
+    var score = (avgB - avgA) / 2;                 // ∈ [-3, 3]
+    var pctB = Math.round(50 + (score / 3) * 50);  // ∈ [0, 100]，50 为中立
     var letter = pctB >= 50 ? B : A;
     var strength = Math.min(100, Math.round(Math.abs(pctB - 50) * 2));
-    var amb = Math.abs(score) <= 1;             // 倾向模糊判定
+    var amb = Math.abs(score) <= 1;                // 倾向模糊判定
+
+    // 置信度：覆盖率 × 倾向强度（快速档即使答满也留出不确定性上限）
+    var coverage = total ? Math.min(1, answered / total) : 0;
+    var modeFactor = conf.key === 'quick' ? 0.86 : 1;
+    var strengthRate = Math.min(1, strength / 70);
+    var confidence = Math.round(100 * coverage * modeFactor * (0.45 + 0.55 * strengthRate));
+    confidence = Math.max(0, Math.min(100, confidence));
 
     if (!amb) allAmb = false;
-    res.dims[dim] = { A: A, B: B, score: score, pctB: pctB, letter: letter, strength: strength, amb: amb };
+    res.dims[dim] = {
+      A: A, B: B, score: score, pctB: pctB, letter: letter, strength: strength,
+      amb: amb, confidence: confidence, answered: answered, total: total,
+      label: amb ? (A + '/' + B) : letter
+    };
     res.letters += letter;
+    res.answered += answered;
+    confSum += confidence;
   });
 
+  // 一致性检查：配对题（语义互为镜像的两题）若被同时强烈认同/同时强烈否认，
+  // 说明作答在该构念上自相矛盾（poles 一正一负即矛盾）
+  var pairs = {};
+  bank.forEach(function (q) {
+    if (!q.pair) return;
+    var r = answers[q.id];
+    if (r === null || r === undefined) return;
+    (pairs[q.pair] = pairs[q.pair] || []).push({ dir: q.dir, r: r });
+  });
+  Object.keys(pairs).forEach(function (k) {
+    var list = pairs[k];
+    if (list.length < 2) return;
+    var poles = list.map(function (x) { return -x.dir * x.r; }); // 正=指向首字母极，负=指向次字母极
+    var strongFirst = poles.filter(function (v) { return v >= 1; }).length;
+    var strongSecond = poles.filter(function (v) { return v <= -1; }).length;
+    if (strongFirst > 0 && strongSecond > 0) res.consistencyIssues++;
+  });
+
+  var overall = Math.round(confSum / DIMS.length) - res.consistencyIssues * 12;
+  res.overallConfidence = Math.max(0, Math.min(100, overall));
   res.easterEgg = allAmb;
   res.type = TYPES[res.letters] || null;
   return res;
 }
 
 function answeredCount(answers) {
+  if (!answers) return 0;
   var n = 0;
-  (answers || []).forEach(function (a) { if (a !== null && a !== undefined) n++; });
+  Object.keys(answers).forEach(function (k) {
+    if (answers[k] !== null && answers[k] !== undefined) n++;
+  });
   return n;
 }
 
@@ -477,11 +568,12 @@ function toast(msg) {
   t._timer = setTimeout(function () { t.classList.remove('show'); }, 2200);
 }
 
-/* 数字滚动动画（easeOutCubic） */
+/* 数字滚动动画（easeOutCubic）；尊重"减少动效"偏好时直接落到终值 */
 function countUp(el, target, dur, fmt) {
   if (!el) return;
-  var t0 = null;
   fmt = fmt || function (v) { return v.toLocaleString('zh-CN'); };
+  if (prefersReduced()) { el.textContent = fmt(target); return; }
+  var t0 = null;
   function step(ts) {
     if (t0 === null) t0 = ts;
     var k = Math.min(1, (ts - t0) / dur);
@@ -490,6 +582,11 @@ function countUp(el, target, dur, fmt) {
     if (k < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
+}
+
+/* 是否偏好减少动效 */
+function prefersReduced() {
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
 /* 带页面转场跳转 */
@@ -514,8 +611,9 @@ function initTransitions() {
   });
 }
 
-/* 光标辉光（仅桌面精细指针设备） */
+/* 光标辉光（仅桌面精细指针设备，且用户未要求减少动效） */
 function initCursorGlow() {
+  if (prefersReduced()) return;
   if (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   var el = document.createElement('div');
   el.className = 'cursor-glow';
@@ -552,28 +650,116 @@ function initHome() {
 
   var base = 128473 + Math.floor(Math.random() * 50000);
   var done = Number(getStore(STORAGE_KEYS.completions) || 0);
-  var total = base + done;
-  countUp($('#homeCount'), total, 1500, function (v) {
+  countUp($('#homeCount'), base + done, 1500, function (v) {
     return '已有 ' + v.toLocaleString('zh-CN') + ' 人完成测试 ✨';
   });
+
+  bindModeCards();
+}
+
+/* 档位选择卡（快速 / 深度） */
+function bindModeCards() {
+  var wrap = $('#modeCards');
+  if (!wrap) return;
+
+  var saved = getStore(STORAGE_KEYS.mode);
+  var mode = MODES[saved] ? saved : DEFAULT_MODE;
+  syncModeCards(mode);
+
+  $$('#modeCards .mode-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      var m = card.getAttribute('data-mode');
+      if (!MODES[m]) return;
+      var prev = getStore(STORAGE_KEYS.mode);
+      setStore(STORAGE_KEYS.mode, m);
+      syncModeCards(m);
+      // 切换档位意味着题序变化，清掉旧进度避免错位
+      if (prev !== m) {
+        try {
+          localStorage.removeItem(STORAGE_KEYS.answers);
+          localStorage.removeItem(STORAGE_KEYS.current);
+          localStorage.removeItem(STORAGE_KEYS.set);
+        } catch (e) { /* ignore */ }
+      }
+    });
+  });
+
+  // 未完成进度提示
+  var savedSet = getStore(STORAGE_KEYS.set);
+  var answers = getStore(STORAGE_KEYS.answers) || {};
+  var done = answeredCount(answers);
+  var hint = $('#resumeHint');
+  if (hint) {
+    if (savedSet && savedSet.length && done > 0 && done < savedSet.length) {
+      hint.textContent = '↩️ 检测到未完成的' + modeConf(mode).label + '（已答 ' + done + ' / ' + savedSet.length + ' 题），点击开始即可继续';
+      hint.classList.add('show');
+    } else {
+      hint.classList.remove('show');
+    }
+  }
+}
+
+function syncModeCards(mode) {
+  $$('#modeCards .mode-card').forEach(function (card) {
+    card.classList.toggle('active', card.getAttribute('data-mode') === mode);
+  });
+  var btn = $('#startBtn');
+  if (btn) btn.textContent = '开始' + modeConf(mode).label + ' →';
+  var meta = $('#startMeta');
+  if (meta) {
+    var conf = modeConf(mode);
+    meta.textContent = conf.count + ' 题 · ' + conf.time + ' · ' + conf.desc;
+  }
 }
 
 /* ============================================================
    答题页：进度、题目、选项、雷达图
    ============================================================ */
-var testState = { answers: [], index: 0 };
+var testState = { answers: {}, set: [], index: 0, mode: DEFAULT_MODE, indicator: null };
 var radarState = { cur: [50, 50, 50, 50], raf: null };
+
+/* 题库查找与当前题 */
+function findQuestion(id) {
+  var bank = questionBank();
+  for (var i = 0; i < bank.length; i++) { if (bank[i].id === id) return bank[i]; }
+  return null;
+}
+function currentQuestion() { return findQuestion(testState.set[testState.index]) || null; }
 
 function initTest() {
   var root = $('#page-test');
   if (!root) return;
+  var migrated = ensureBankVersion();
 
-  testState.answers = getStore(STORAGE_KEYS.answers) || Array(QUESTIONS.length).fill(null);
-  if (testState.answers.length !== QUESTIONS.length) {
-    testState.answers = Array(QUESTIONS.length).fill(null);
+  // 档位
+  var savedMode = getStore(STORAGE_KEYS.mode);
+  testState.mode = MODES[savedMode] ? savedMode : DEFAULT_MODE;
+  setStore(STORAGE_KEYS.mode, testState.mode);
+
+  // 题序：优先恢复上次未完成的题序（校验 id 仍存在）
+  var savedSet = getStore(STORAGE_KEYS.set);
+  var validSet = savedSet && savedSet.length && savedSet.every(function (id) { return findQuestion(id); });
+  if (!validSet) {
+    testState.set = buildQuestionSet(testState.mode).map(function (q) { return q.id; });
+    testState.answers = {};
+    setStore(STORAGE_KEYS.set, testState.set);
+    setStore(STORAGE_KEYS.answers, {});
+  } else {
+    testState.set = savedSet;
+    testState.answers = getStore(STORAGE_KEYS.answers) || {};
   }
-  var saved = getStore(STORAGE_KEYS.current);
-  testState.index = (typeof saved === 'number' && saved >= 0 && saved < QUESTIONS.length) ? saved : 0;
+
+  var savedIdx = getStore(STORAGE_KEYS.current);
+  testState.index = (typeof savedIdx === 'number' && savedIdx >= 0 && savedIdx < testState.set.length) ? savedIdx : 0;
+
+  // 档位徽章 + 总题数
+  var conf0 = modeConf(testState.mode);
+  var badge = $('#modeBadge');
+  if (badge) {
+    badge.innerHTML = '<b>' + conf0.label + '</b> · ' + testState.set.length + ' 题 · ' + conf0.time;
+  }
+  var qTotalEl = $('#qTotal');
+  if (qTotalEl) qTotalEl.textContent = testState.set.length;
 
   // 滑片指示器：随选中项滑动的高级感选项条
   var ind = document.createElement('span');
@@ -583,6 +769,7 @@ function initTest() {
   window.addEventListener('resize', positionIndicator);
 
   bindTestEvents();
+  buildJumpGrid();
   renderQuestion(testState.index);
   updateProgress();
   updateLivePreview();
@@ -591,34 +778,99 @@ function initTest() {
   var pcts = pctFromAnswers(testState.answers);
   radarState.cur = pcts.slice();
   drawRadar(pcts, false);
+
+  if (migrated === false) toast('题库已升级到 v' + bankVersion() + '，已为你重新开始 ⚡');
+}
+
+/* 跳转到指定题目 */
+function goTo(i) {
+  if (i < 0 || i >= testState.set.length) return;
+  testState.index = i;
+  setStore(STORAGE_KEYS.current, i);
+  renderQuestion(i);
+  updateProgress();
+}
+
+/* 题号跳转网格 */
+function buildJumpGrid() {
+  var grid = $('#jumpGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  testState.set.forEach(function (id, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'jump-dot';
+    b.textContent = i + 1;
+    if (testState.answers[id] !== undefined && testState.answers[id] !== null) b.classList.add('done');
+    b.addEventListener('click', function () { goTo(i); });
+    grid.appendChild(b);
+  });
+  highlightJump(testState.index);
+}
+
+function highlightJump(i) {
+  $$('#jumpGrid .jump-dot').forEach(function (b, idx) {
+    b.classList.toggle('current', idx === i);
+  });
+}
+
+/* 深度测试里程碑提示（每 15 题一次） */
+function showMilestone(done) {
+  var el = $('#milestone');
+  if (!el) return;
+  var step = Math.floor(done / 15);
+  var labels = ['E/I 外向-内向', 'S/N 实感-直觉', 'T/F 思考-情感', 'J/P 判断-感知'];
+  if (!labels[step - 1]) return;
+  el.textContent = '✦ 已完成 ' + done + ' 题 · ' + labels[step - 1] + ' 部分结束，继续就好 ✨';
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(function () { el.classList.remove('show'); }, 3200);
 }
 
 function bindTestEvents() {
-  $('#prevBtn').addEventListener('click', function () {
-    if (testState.index > 0) { testState.index--; renderQuestion(testState.index); updateProgress(); }
-  });
+  $('#prevBtn').addEventListener('click', function () { goTo(testState.index - 1); });
   $('#nextBtn').addEventListener('click', function () {
-    if (testState.answers[testState.index] === null) { toast('先选一个答案再继续哦 😉'); return; }
-    if (testState.index === QUESTIONS.length - 1) { finishTest(); return; }
-    testState.index++;
-    renderQuestion(testState.index);
-    updateProgress();
+    var q = currentQuestion();
+    if (q && (testState.answers[q.id] === undefined || testState.answers[q.id] === null)) {
+      toast('先选一个答案再继续哦 😉');
+      return;
+    }
+    if (testState.index === testState.set.length - 1) { finishTest(); return; }
+    goTo(testState.index + 1);
   });
   $('#resetLink').addEventListener('click', function (e) {
     e.preventDefault();
     if (!confirm('确定要清空进度、重新开始吗？')) return;
     clearTestData();
-    testState.answers = Array(QUESTIONS.length).fill(null);
-    testState.index = 0;
-    renderQuestion(0);
-    updateProgress();
+    testState.answers = {};
+    testState.set = buildQuestionSet(testState.mode).map(function (q) { return q.id; });
+    setStore(STORAGE_KEYS.set, testState.set);
+    setStore(STORAGE_KEYS.mode, testState.mode);
+    setStore(STORAGE_KEYS.answers, {});
+    buildJumpGrid();
+    goTo(0);
     toast('已重新开始');
+  });
+
+  // 键盘快捷键：1-4 选择选项，← / → 切题
+  document.addEventListener('keydown', function (e) {
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key >= '1' && e.key <= '4') {
+      var s = SCALE[Number(e.key) - 1];
+      if (s) selectOption(s.val);
+    } else if (e.key === 'ArrowLeft') {
+      goTo(testState.index - 1);
+    } else if (e.key === 'ArrowRight') {
+      var btn = $('#nextBtn');
+      if (btn) btn.click();
+    }
   });
 }
 
 function renderQuestion(i) {
-  var q = QUESTIONS[i];
-  $('#qNum').textContent = '第 ' + (i + 1) + ' 题';
+  var q = currentQuestion();
+  if (!q) return;
+  $('#qNum').textContent = '第 ' + (i + 1) + ' 题 · ' + DIM_LABELS[q.dim];
   $('#qText').textContent = q.text;
   $('#qCurrent').textContent = i + 1;
 
@@ -630,13 +882,15 @@ function renderQuestion(i) {
 
   var opts = $('#options');
   opts.innerHTML = '';
-  SCALE.forEach(function (s) {
+  var cur = testState.answers[q.id];
+  SCALE.forEach(function (s, idx) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'opt';
     btn.setAttribute('data-val', s.val);
-    btn.innerHTML = s.label + '<span class="opt-tag">' + s.tag + '</span>';
-    if (testState.answers[i] === s.val) btn.classList.add('selected');
+    btn.innerHTML = '<span class="opt-key">' + (idx + 1) + '</span>' +
+      s.label + '<span class="opt-tag">' + s.tag + '</span>';
+    if (cur === s.val) btn.classList.add('selected');
     btn.addEventListener('click', function () { selectOption(s.val); });
     opts.appendChild(btn);
   });
@@ -646,19 +900,25 @@ function renderQuestion(i) {
   // 上一题按钮：第一题隐藏
   $('#prevBtn').style.visibility = i === 0 ? 'hidden' : 'visible';
   // 下一题按钮：最后一题变“查看结果”
-  $('#nextBtn').textContent = i === QUESTIONS.length - 1 ? '查看结果 ✨' : '下一题 →';
+  $('#nextBtn').textContent = i === testState.set.length - 1 ? '查看结果 ✨' : '下一题 →';
 
+  highlightJump(i);
   positionIndicator();
 }
 
 function selectOption(val) {
-  testState.answers[testState.index] = val;
+  var q = currentQuestion();
+  if (!q) return;
+  testState.answers[q.id] = val;
   setStore(STORAGE_KEYS.answers, testState.answers);
   setStore(STORAGE_KEYS.current, testState.index);
   $$('.opt').forEach(function (b) { b.classList.toggle('selected', Number(b.getAttribute('data-val')) === val); });
   positionIndicator();
+  var dot = $$('#jumpGrid .jump-dot')[testState.index];
+  if (dot) dot.classList.add('done');
   updateProgress();
   animateRadarTo(pctFromAnswers(testState.answers));
+  if (testState.mode === 'deep' && (testState.index + 1) % 15 === 0) showMilestone(testState.index + 1);
 }
 
 /* 把滑片指示器定位到当前选中项 */
@@ -678,17 +938,22 @@ function positionIndicator() {
 }
 
 function updateProgress() {
-  var done = answeredCount(testState.answers);
-  $('#progressFill').style.width = (done / QUESTIONS.length * 100) + '%';
-  $('#qDone').textContent = '已完成 ' + done + ' 题';
+  var total = testState.set.length || 1;
+  var done = testState.set.filter(function (id) {
+    var v = testState.answers[id];
+    return v !== undefined && v !== null;
+  }).length;
+  $('#progressFill').style.width = (done / total * 100) + '%';
+  $('#qDone').textContent = '已完成 ' + done + ' / ' + total + ' 题';
   updateLivePreview();
 }
 
 /* ---------- 实时画像预览（答题页底部内容区） ---------- */
 function dimAnswered(answers, dim) {
   var n = 0;
-  QUESTIONS.forEach(function (q, i) {
-    if (q.dim === dim && answers[i] !== null && answers[i] !== undefined) n++;
+  questionBank().forEach(function (q) {
+    var v = answers[q.id];
+    if (q.dim === dim && v !== undefined && v !== null) n++;
   });
   return n;
 }
@@ -712,25 +977,29 @@ function updateLivePreview() {
   if (!panel) return;
   buildLiveBars();
 
-  var res = computeResult(testState.answers);
-  var done = answeredCount(testState.answers);
+  var total = testState.set.length || 1;
+  var res = computeResult(testState.answers, testState.mode);
+  var done = res.answered;
 
   // 迷你四维条：宽度 = 次字母极占比（50% 为中立）
   $$('#liveBars .live-bar').forEach(function (row, i) {
-    var pctB = res.dims[DIMS[i]].pctB;
-    row.querySelector('.lb-fill').style.width = pctB + '%';
-    row.querySelector('.lb-val').textContent = pctB + '%';
+    var d = res.dims[DIMS[i]];
+    row.querySelector('.lb-fill').style.width = d.pctB + '%';
+    row.querySelector('.lb-val').textContent = d.pctB + '%';
+    row.classList.toggle('thin', d.answered < 3);
   });
 
-  // 实时倾向字母（未答维度显示 ?）
+  // 实时倾向字母（未答维度显示 ?，模糊维度显示双字母）
   var letters = DIMS.map(function (dim) {
-    return dimAnswered(testState.answers, dim) > 0 ? res.dims[dim].letter : '?';
+    var d = res.dims[dim];
+    if (dimAnswered(testState.answers, dim) === 0) return '?';
+    return d.amb ? d.label : d.letter;
   });
 
   // 关键词云 + 助手气泡
   var chips = $('#liveChips');
   chips.innerHTML = '';
-  var msg = bubbleMsg(done);
+  var msg = bubbleMsg(done, total);
   var allAnswered = DIMS.every(function (dim) { return dimAnswered(testState.answers, dim) > 0; });
 
   if (allAnswered && res.type) {
@@ -742,6 +1011,7 @@ function updateLivePreview() {
       chips.appendChild(s);
     });
     msg += ' 目前最像「' + res.type.zh + '」';
+    if (done >= total * 0.5) msg += ' · 置信度 ' + res.overallConfidence + '%';
   } else {
     $('#liveLetters').textContent = letters.join(' · ');
     var ghost = document.createElement('span');
@@ -753,18 +1023,20 @@ function updateLivePreview() {
   $('#liveBubble').textContent = msg;
 }
 
-function bubbleMsg(done) {
-  if (done === 0) return '嘘——没有标准答案，凭第一直觉选 ✨';
-  if (done < 6) return '不错，你已经有一点点倾向了～';
-  if (done < 12) return '雷达图正在悄悄变形状……';
-  if (done < 18) return '过半啦！你的画像越来越清晰了 👀';
-  if (done < 24) return '最后一公里，稳住！';
+function bubbleMsg(done, total) {
+  if (!done) return '嘘——没有标准答案，凭第一直觉选 ✨';
+  var p = done / (total || 1);
+  if (p < 0.25) return '不错，你已经有一点点倾向了～';
+  if (p < 0.5) return '雷达图正在悄悄变形状……';
+  if (p < 0.75) return '过半啦！你的画像越来越清晰了 👀';
+  if (p < 1) return '最后一公里，稳住！';
   return '收集完毕，准备揭晓！';
 }
 
 function finishTest() {
-  var res = computeResult(testState.answers);
+  var res = computeResult(testState.answers, testState.mode);
   setStore(STORAGE_KEYS.result, res);
+  pushHistory(res);
   navigate('result.html');
 }
 
@@ -864,8 +1136,13 @@ function drawRadar(pcts, withDots) {
   }
 }
 
-/* 雷达图补间动画：350ms 从当前值平滑过渡到目标值 */
+/* 雷达图补间动画：350ms 从当前值平滑过渡到目标值（减少动效时直接跳变） */
 function animateRadarTo(target) {
+  if (prefersReduced()) {
+    radarState.cur = target.slice();
+    drawRadar(target, true);
+    return;
+  }
   var from = radarState.cur.slice();
   var t0 = null;
   var duration = 350;
@@ -893,8 +1170,8 @@ function initResult() {
 
   var res = getStore(STORAGE_KEYS.result);
   var answers = getStore(STORAGE_KEYS.answers);
-  if (!res && answers) res = computeResult(answers);
-  if (!res || answeredCount(answers || []) === 0) {
+  if (!res && answers) res = computeResult(answers, getStore(STORAGE_KEYS.mode));
+  if (!res || answeredCount(answers || {}) === 0) {
     location.href = 'index.html';
     return;
   }
@@ -917,7 +1194,6 @@ function renderResult(res) {
   if (!t) return;
 
   var extra = TYPE_EXTRA[res.letters] || {};
-  var growth = TYPE_GROWTH[res.letters] || {};
 
   // 类型主题色（对应 16P 四大气质群组配色）
   var rm = $('#resultMain');
@@ -949,16 +1225,69 @@ function renderResult(res) {
   $('#descText').textContent = t.desc;
   $('#factText').textContent = t.fact;
 
+  renderMetaBar(res);
   renderTraitBars(res);
+  renderConfidence(res);
   renderReportSections(res);
+  renderProfileSections(res);
 
   $('#retestBtn').addEventListener('click', function () {
     clearTestData();
-    navigate('test.html');
+    navigate('index.html');
   });
   $('#shareBtn').addEventListener('click', function () { buildShareCard(res); });
+  $('#shareNativeBtn').addEventListener('click', function () { shareNative(res); });
   $('#partnerBtn').addEventListener('click', function () { openPartner(res); });
   $('#copyBtn').addEventListener('click', function () { copyShareText(res); });
+}
+
+/* ---------- 结果元信息条（档位 / 题量 / 题库版本 / 一致性） ---------- */
+function renderMetaBar(res) {
+  var el = $('#metaBar');
+  if (!el) return;
+  var conf = modeConf(res.mode);
+  var parts = ['✦ ' + conf.label, res.answered + ' 题作答', '题库 v' + res.bankVersion];
+  if (res.consistencyIssues > 0) parts.push('⚠️ ' + res.consistencyIssues + ' 组作答不一致');
+  el.innerHTML = parts.map(function (s) {
+    return '<span class="meta-chip">' + s + '</span>';
+  }).join('');
+}
+
+/* ---------- 结果可靠度（逐维置信度） ---------- */
+function renderConfidence(res) {
+  var wrap = $('#confPanel');
+  if (!wrap) return;
+
+  var rows = DIMS.map(function (dim) {
+    var d = res.dims[dim];
+    var cls = d.confidence >= 70 ? 'high' : (d.confidence >= 45 ? 'mid' : 'low');
+    return '<div class="conf-row">' +
+      '<span class="conf-label">' + DIM_LABELS[dim] + '</span>' +
+      '<div class="conf-track"><i class="conf-fill ' + cls + '" data-w="' + d.confidence + '"></i></div>' +
+      '<span class="conf-val">' + d.confidence + '%</span>' +
+      '<span class="conf-letter">' + d.label + '</span>' +
+      '</div>';
+  }).join('');
+
+  var note = res.overallConfidence >= 70
+    ? '整体置信度 ' + res.overallConfidence + '%，这次结果的可参考度较高。'
+    : (res.overallConfidence >= 45
+      ? '整体置信度 ' + res.overallConfidence + '%，部分维度偏中间，建议 2 周后复测对照。'
+      : '整体置信度 ' + res.overallConfidence + '%，这次作答偏中间或存在不一致，先当作一次参考。');
+  if (res.consistencyIssues > 0) {
+    note += ' 检测到 ' + res.consistencyIssues + ' 组语义相反的题目答案互相矛盾，可能说明你在这些维度上确实比较居中。';
+  }
+
+  wrap.innerHTML = '<h4>🎯 结果可靠度</h4>' + rows +
+    '<p class="gc-text conf-note">' + note + '</p>';
+
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(wrap.querySelectorAll('.conf-fill'), function (f) {
+        f.style.width = f.getAttribute('data-w') + '%';
+      });
+    });
+  });
 }
 
 /* ---------- 六边形类型徽章（16P 风格） ---------- */
@@ -1063,6 +1392,231 @@ function renderReportSections(res) {
   });
 }
 
+/* ============================================================
+   结果页：关系与社交 / 压力下的你 / 更多画像 / 成长清单 / 历史对比
+   （内容来自 data/profile.js 的 TYPE_PROFILE）
+   ============================================================ */
+function profileOf(letters) {
+  return (typeof TYPE_PROFILE !== 'undefined' && TYPE_PROFILE[letters]) ? TYPE_PROFILE[letters] : null;
+}
+
+/* 历史记录：最近 10 次（用于复测对比） */
+function pushHistory(res) {
+  var list = getStore(STORAGE_KEYS.history) || [];
+  var entry = {
+    t: Date.now(),
+    mode: res.mode,
+    letters: res.letters,
+    dims: DIMS.map(function (d) { return res.dims[d].pctB; }),
+    conf: res.overallConfidence
+  };
+  var last = list[0];
+  if (last && last.mode === entry.mode && last.letters === entry.letters &&
+      Math.abs((last.t || 0) - entry.t) < 3000) return; // 防重复
+  list.unshift(entry);
+  setStore(STORAGE_KEYS.history, list.slice(0, 10));
+}
+
+function fmtDate(ts) {
+  var d = new Date(ts);
+  function p(n) { return (n < 10 ? '0' : '') + n; }
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function renderProfileSections(res) {
+  var p = profileOf(res.letters);
+  renderRelations(p);
+  renderStress(p);
+  renderMore(p);
+  renderChecklist(res, p);
+  renderHistory(res);
+}
+
+/* ---------- 关系与社交（4 个场景切换） ---------- */
+function renderRelations(p) {
+  var card = $('#relCard');
+  var tabs = $('#relTabs');
+  var text = $('#relText');
+  if (!card || !tabs || !text) return;
+  var rel = (p && p.relations) || {};
+  var labels = { love: '💗 恋爱', friend: '🤝 友谊', family: '🏠 家庭', work: '💼 职场' };
+  var keys = Object.keys(labels).filter(function (k) { return rel[k]; });
+  if (!keys.length) { card.style.display = 'none'; return; }
+  tabs.innerHTML = '';
+  function show(k) {
+    text.textContent = rel[k] || '';
+    $$('#relTabs .rel-tab').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-rel') === k);
+    });
+  }
+  keys.forEach(function (k) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'rel-tab';
+    b.setAttribute('data-rel', k);
+    b.textContent = labels[k];
+    b.addEventListener('click', function () { show(k); });
+    tabs.appendChild(b);
+  });
+  show(keys[0]);
+}
+
+/* ---------- 压力下的你 ---------- */
+function renderStress(p) {
+  var wrap = $('#stressGrid');
+  var card = $('#stressCard');
+  if (!wrap || !card) return;
+  var s = (p && p.stress) || {};
+  var rows = [
+    ['🚨', '压力信号', s.signal],
+    ['🌀', '典型反应', s.react],
+    ['🌤️', '修复动作', s.recover]
+  ].filter(function (r) { return r[2]; });
+  if (!rows.length) { card.style.display = 'none'; return; }
+  wrap.innerHTML = rows.map(function (r) {
+    return '<div class="stress-item"><span class="si-ico">' + r[0] + '</span>' +
+      '<div class="si-body"><b class="si-title">' + r[1] + '</b>' +
+      '<p class="gc-text">' + r[2] + '</p></div></div>';
+  }).join('');
+}
+
+/* ---------- 更多画像（沟通 / 团队 / 学习 / 金钱） ---------- */
+function renderMore(p) {
+  var wrap = $('#moreGrid');
+  var card = $('#moreCard');
+  if (!wrap || !card) return;
+  var rows = [
+    ['💬', '沟通风格', p && p.comm],
+    ['🧩', '团队角色', p && p.team],
+    ['📚', '学习风格', p && p.learn],
+    ['💰', '金钱与决策', p && p.money]
+  ].filter(function (r) { return r[2]; });
+  if (!rows.length) { card.style.display = 'none'; return; }
+  wrap.innerHTML = rows.map(function (r) {
+    return '<div class="more-item"><b class="mi-title">' + r[0] + ' ' + r[1] + '</b>' +
+      '<p class="gc-text">' + r[2] + '</p></div>';
+  }).join('');
+}
+
+/* ---------- 成长清单（可勾选 + 本地进度） ---------- */
+function renderChecklist(res, p) {
+  var wrap = $('#checklist');
+  if (!wrap) return;
+  var items = (p && p.checklist) || [];
+  if (!items.length) {
+    var card = $('#checklistCard');
+    if (card) card.style.display = 'none';
+    return;
+  }
+  var key = res.letters;
+  var all = getStore(STORAGE_KEYS.checklist) || {};
+  var checked = all[key] || [];
+  wrap.innerHTML = '';
+
+  items.forEach(function (text, i) {
+    var isDone = checked.indexOf(i) >= 0;
+    var row = document.createElement('label');
+    row.className = 'cl-item' + (isDone ? ' done' : '');
+    row.innerHTML = '<input type="checkbox"' + (isDone ? ' checked' : '') + '>' +
+      '<span class="cl-box" aria-hidden="true"></span>' +
+      '<span class="cl-text">' + text + '</span>';
+    row.querySelector('input').addEventListener('change', function (e) {
+      var store = getStore(STORAGE_KEYS.checklist) || {};
+      var arr = store[key] || [];
+      var idx = arr.indexOf(i);
+      if (e.target.checked && idx < 0) arr.push(i);
+      if (!e.target.checked && idx >= 0) arr.splice(idx, 1);
+      store[key] = arr;
+      setStore(STORAGE_KEYS.checklist, store);
+      row.classList.toggle('done', e.target.checked);
+      updateChecklistProgress(key, items.length);
+      if (arr.length === items.length) toast('六条全部打卡完成，厉害！🎉');
+    });
+    wrap.appendChild(row);
+  });
+
+  updateChecklistProgress(key, items.length);
+}
+
+function updateChecklistProgress(key, total) {
+  var el = $('#clProgress');
+  if (!el) return;
+  var all = getStore(STORAGE_KEYS.checklist) || {};
+  var arr = all[key] || [];
+  var pct = total ? Math.round(arr.length / total * 100) : 0;
+  el.textContent = arr.length + ' / ' + total + ' · ' + pct + '%';
+}
+
+/* ---------- 历史与复测对比 ---------- */
+function renderHistory(res) {
+  var wrap = $('#history');
+  if (!wrap) return;
+  var list = getStore(STORAGE_KEYS.history) || [];
+  if (!list.length) {
+    list = [{ t: Date.now(), mode: res.mode, letters: res.letters, dims: DIMS.map(function (d) { return res.dims[d].pctB; }), conf: res.overallConfidence }];
+  }
+  var cur = list[0];
+  var prev = list[1];
+  var html = '';
+
+  if (prev) {
+    html += '<div class="hist-delta">' + DIMS.map(function (dim, i) {
+      var delta = (cur.dims[i] || 50) - (prev.dims[i] || 50);
+      var arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '—');
+      var cls = delta > 0 ? 'up' : (delta < 0 ? 'down' : 'flat');
+      return '<div class="hist-item"><span class="hi-dim">' + DIM_LABELS[dim] + '</span>' +
+        '<span class="hi-val ' + cls + '">' + arrow + ' ' + Math.abs(delta) + '%</span></div>';
+    }).join('') + '</div>';
+    html += '<p class="gc-text">与上次（' + fmtDate(prev.t) + ' · ' + prev.letters + '）相比的维度变化。</p>';
+  } else {
+    html += '<p class="gc-text">这是你的第一条记录。隔 2-4 周再测一次，这里会显示维度变化趋势。</p>';
+  }
+
+  html += '<ol class="gc-list hist-list">' + list.slice(0, 5).map(function (h) {
+    var conf = MODES[h.mode] ? MODES[h.mode].label : h.mode;
+    return '<li><span class="hist-type">' + h.letters + '</span>' +
+      '<span class="gc-li-text">' + fmtDate(h.t) + ' · ' + conf + ' · 置信度 ' + (h.conf || 0) + '%</span></li>';
+  }).join('') + '</ol>';
+
+  wrap.innerHTML = html;
+}
+
+/* ---------- 复制到剪贴板（统一入口） ---------- */
+function copyToClipboard(text, okMsg) {
+  function done(ok) { toast(ok ? (okMsg || '已复制 📋') : '复制失败，请手动复制'); }
+  function legacy() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    done(ok);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done(true); }, legacy);
+  } else {
+    legacy();
+  }
+}
+
+/* ---------- 原生分享（移动端） / 降级为复制 ---------- */
+function shareNative(res) {
+  var t = res.type;
+  var extra = TYPE_EXTRA[res.letters] || {};
+  var text = '我的 MBTI 是 ' + res.letters + '（' + t.zh + '）' +
+    (extra.tagline ? '：' + extra.tagline : '') + ' 你也来测测看～';
+  var url = location.origin + location.pathname.replace(/result\.html$/, 'index.html');
+  if (navigator.share) {
+    navigator.share({ title: 'MBTI 人格测试', text: text, url: url }).catch(function () { /* 用户取消 */ });
+    return;
+  }
+  copyToClipboard(text + ' ' + url, '分享内容已复制 📋');
+}
+
 /* ---------- 分享人格卡片（原生 Canvas 绘制 PNG） ---------- */
 function buildShareCard(res) {
   var t = res.type;
@@ -1156,10 +1710,11 @@ function buildShareCard(res) {
   });
 
   // 底部（与四维占比条拉开间距，底部留白均衡）
+  var conf = modeConf(res.mode);
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   ctx.font = '500 32px ' + font;
-  ctx.fillText('24 道题 · 约 5 分钟 · 发现你的人格密码', W / 2, H - 116);
+  ctx.fillText(conf.label + ' · ' + conf.count + ' 题 · 发现你的人格密码', W / 2, H - 116);
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = '400 26px ' + font;
   ctx.fillText('MBTI 仅供参考，人格是流动的，别让标签定义你 😉', W / 2, H - 62);
@@ -1193,29 +1748,11 @@ function roundRect(ctx, x, y, w, h, r) {
 function copyShareText(res) {
   var t = res.type;
   var extra = TYPE_EXTRA[res.letters] || {};
+  var conf = modeConf(res.mode);
   var text = '我的 MBTI 是 ' + res.letters + '（' + t.zh + '）！' +
     (extra.tagline ? extra.tagline + ' ' : '') +
-    '你也来测测看，24 题 5 分钟就能知道～';
-  var ok = function (b) { toast(b ? '分享文案已复制 📋' : '复制失败，请手动复制'); };
-
-  function legacy() {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    var done = false;
-    try { done = document.execCommand('copy'); } catch (e) { done = false; }
-    document.body.removeChild(ta);
-    ok(done);
-  }
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { ok(true); }, legacy);
-  } else {
-    legacy();
-  }
+    '你也来测测看，' + conf.label + ' ' + conf.count + ' 题就能知道～';
+  copyToClipboard(text, '分享文案已复制 📋');
 }
 
 /* ============================================================
@@ -1320,8 +1857,19 @@ if (typeof document !== 'undefined') {
 /* 供 Node 自动化测试导出 */
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    QUESTIONS: QUESTIONS, TYPES: TYPES, TYPE_EXTRA: TYPE_EXTRA, TYPE_GROWTH: TYPE_GROWTH,
-    SCALE: SCALE, DIMS: DIMS,
-    computeResult: computeResult, init: init
+    /* 数据（题库来自 data/questions.js，画像来自 data/profile.js） */
+    TYPES: TYPES, TYPE_EXTRA: TYPE_EXTRA, TYPE_GROWTH: TYPE_GROWTH,
+    TYPE_PROFILE: (typeof TYPE_PROFILE !== 'undefined') ? TYPE_PROFILE : null,
+    SCALE: SCALE, DIMS: DIMS, DIM_LABELS: DIM_LABELS, DIM_FULL: DIM_FULL,
+    MODES: MODES, DEFAULT_MODE: DEFAULT_MODE,
+    /* 引擎 */
+    questionBank: questionBank,
+    bankVersion: bankVersion,
+    modeConf: modeConf,
+    buildQuestionSet: buildQuestionSet,
+    computeResult: computeResult,
+    answeredCount: answeredCount,
+    /* 页面入口（供 DOM 冒烟测试） */
+    init: init
   };
 }

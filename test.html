@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>答题中 · MBTI 人格测试</title>
+  <meta name="theme-color" content="#3B2A86">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
@@ -14,16 +15,20 @@
   <main class="test-wrap">
     <div class="blob tb1" aria-hidden="true"></div>
     <div class="blob tb2" aria-hidden="true"></div>
-    <!-- 顶部：返回/重开 + 进度条 -->
+
+    <h1 class="visually-hidden">MBTI 人格测试答题</h1>
+
+    <!-- 顶部：档位 / 重开 + 进度条 -->
     <div class="test-top">
       <span class="logo-mini">✦ 人格实验室</span>
+      <span class="mode-badge" id="modeBadge">深度测试 · 60 题</span>
       <span class="spacer"></span>
       <a href="#" id="resetLink">↺ 重新开始</a>
     </div>
 
     <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-meta">
-      <span>第 <b id="qCurrent">1</b> / <span id="qTotal">24</span> 题</span>
+      <span>第 <b id="qCurrent">1</b> / <b id="qTotal">60</b> 题</span>
       <span>已完成 <b id="qDone">0</b> 题</span>
     </div>
 
@@ -47,6 +52,9 @@
           <button type="button" class="btn btn-ghost" id="prevBtn">← 上一题</button>
           <button type="button" class="btn btn-primary" id="nextBtn">下一题 →</button>
         </div>
+
+        <!-- 阶段提示（深度测试每 15 题一次） -->
+        <div class="milestone" id="milestone" role="status"></div>
       </section>
     </div>
 
@@ -62,9 +70,20 @@
         <div class="live-chips" id="liveChips"></div>
       </div>
     </section>
+
+    <!-- 题号跳转 -->
+    <section class="jump-panel">
+      <div class="jump-head">
+        <span>题号跳转</span>
+        <span class="jump-hint">键盘 1-4 选答案 · ← → 切题</span>
+      </div>
+      <div class="jump-grid" id="jumpGrid"></div>
+    </section>
   </main>
 
   <div class="toast" id="toast" role="status"></div>
+  <script src="data/questions.js"></script>
+  <script src="data/profile.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
