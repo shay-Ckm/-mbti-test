@@ -165,7 +165,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ['result.html', '结果页', [['报告长图按钮', /reportImgBtn/], ['类型档案入口', /typePageLink/], ['打印按钮', /printBtn/]]],
     ['relation.html', '关系匹配页', [['矩阵容器', /id="relMatrix"/], ['选择槽', /relSlotA/]]],
     ['types/intj.html', '类型百科页', [['类型内容', /战略家/], ['结构化数据', /application\/ld\+json/]]],
-    ['sw.js', 'Service Worker', [['缓存版本 v2.8.0', /mbti-v2\.8\.0/]]],
+    ['sw.js', 'Service Worker', [['缓存版本 v3.0.0', /mbti-v3\.0\.0/]]],
     ['manifest.json', 'PWA manifest', [['名称字段', /"name"/], ['独立窗口', /standalone/]]]
   ];
   for (const [file, label, marks] of pages) {
@@ -173,6 +173,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     if (r.status !== 200) { check('线上 ' + label + ' 可访问', false, 'HTTP ' + r.status + ' ' + file); continue; }
     const text = r.buf.toString('utf8');
     marks.forEach(([mLabel, re]) => check('线上 ' + label + ' · ' + mLabel, re.test(text)));
+  }
+
+  /* 线上题库版本与题量（确认新题库真的上线了） */
+  {
+    const bank = await fetchUrl(SITE + 'data/questions.js');
+    const txt = bank.buf.toString('utf8');
+    const items = (txt.match(/dim: '/g) || []).length;
+    check('线上题库为 v3（BANK_VERSION = 3）', bank.status === 200 && /var BANK_VERSION = 3;/.test(txt),
+      'HTTP ' + bank.status);
+    check('线上题量为 64 题', items === 64, items + ' 题');
   }
 
   /* 二进制资源签名 */
