@@ -36,6 +36,9 @@ jobs:
       - name: 逻辑测试（题库结构 / 双档位 / 计分 / 置信度 / 一致性 / 关系引擎 / 数据完整性）
         run: node mbti-logic.test.js
 
+      - name: 计分准确率仿真（模型内：恢复率 / α / 重测 / 响应定势）
+        run: node mbti-psychometrics.test.js
+
       - name: DOM 冒烟测试（三页初始化与关键交互）
         run: node mbti-smoke.test.js
 

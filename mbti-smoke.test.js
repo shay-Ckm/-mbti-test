@@ -158,9 +158,9 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
     api.init();
     check('答题页初始化无异常', true);
     check('题目已渲染（题干非空）', elements['#qText'].textContent.length > 0, elements['#qText'].textContent);
-    check('总题数按档位写入', String(elements['#qTotal'].textContent) === '60', String(elements['#qTotal'].textContent));
+    check('总题数按档位写入（深度档 64）', String(elements['#qTotal'].textContent) === '64', String(elements['#qTotal'].textContent));
     check('档位徽章包含档位名', /深度测试/.test(elements['#modeBadge'].innerHTML), elements['#modeBadge'].innerHTML);
-    check('题号跳转网格已构建', elements['#jumpGrid'].children.length === 60, String(elements['#jumpGrid'].children.length));
+    check('题号跳转网格已构建（64 格）', elements['#jumpGrid'].children.length === 64, String(elements['#jumpGrid'].children.length));
 
     // 通过键盘快捷键作答（1 → 强同意）
     const kd = docListeners.keydown || [];

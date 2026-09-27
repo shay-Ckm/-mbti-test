@@ -27,7 +27,7 @@ var STORAGE_KEYS = {
 /* 档位配置：两档共用同一题库，仅题量与时长不同 */
 var MODES = {
   quick: { key: 'quick', label: '快速测试', count: 24, time: '约 5 分钟',     desc: '24 题精选 · 快速得到结果，适合分享' },
-  deep:  { key: 'deep',  label: '深度测试', count: 60, time: '约 10-12 分钟', desc: '60 题全覆盖 · 精度更高，含一致性校验' }
+  deep:  { key: 'deep',  label: '深度测试', count: 64, time: '约 12-14 分钟', desc: '64 题全覆盖 · 精度更高，含侧面一致性与镜像题校验' }
 };
 var DEFAULT_MODE = 'deep';
 
@@ -54,10 +54,10 @@ var DIM_LABELS = { EI: 'E·I', SN: 'S·N', TF: 'T·F', JP: 'J·P' };
 var DIM_FULL = { EI: ['外向', '内向'], SN: ['实感', '直觉'], TF: ['思考', '情感'], JP: ['判断', '感知'] };
 
 /* ================= 题库（外部数据文件 data/questions.js） =================
-   双档位共用同一题库：
-   - 快速测试 quick：每维 6 题（极性 3:3），共 24 题
-   - 深度测试 deep ：每维 15 题（极性 8:7），共 60 题
-   每题字段：dim 维度 / dir 作答方向 / facet 侧面 / quick 是否快速档 / pair 一致性配对
+   双档位共用同一题库（v3）：
+   - 快速测试 quick：每维 6 题（极性 3:3，覆盖全部 4 个内容侧面），共 24 题
+   - 深度测试 deep ：每维 16 题（极性 8:8，每侧面两侧各 2 题），共 64 题
+   每题字段：dim 维度 / dir 作答方向 / facet 内容侧面 / quick 是否快速档 / pair 镜像题
    浏览器按 <script> 顺序加载 data/questions.js；Node 测试在 require 本文件前注入 global.QUESTIONS。 */
 
 /* ================= 16 型人格资料 ================= */
@@ -436,8 +436,10 @@ function ensureBankVersion() {
 }
 
 /* ================= 选题：双档位 =================
-   两档共用同一题库；深度档在维度块内随机顺序（抵消顺序效应），
-   快速档固定顺序（便于用户复测时对比）。                              */
+   两档共用同一题库，且**两档都随机化并交织出题**（v3 改动）：
+   - 按维度轮转，避免同维度连续成块；
+   - 优先选与上一题不同侧面、不同方向的题，削弱顺序与启动效应；
+   - 快速档不再固定顺序（旧设计为了"复测可对比"，但代价是稳定的作答定势）。 */
 function shuffle(arr) {
   for (var i = arr.length - 1; i > 0; i--) {
     var j = Math.floor(Math.random() * (i + 1));
@@ -449,15 +451,47 @@ function shuffle(arr) {
 function buildQuestionSet(modeKey) {
   var conf = modeConf(modeKey);
   var bank = questionBank();
-  var out = [];
-  DIMS.forEach(function (dim) {
-    var block = bank.filter(function (q) {
+  /* 每维取出本档题目并分别打乱 */
+  var queues = DIMS.map(function (dim) {
+    return shuffle(bank.filter(function (q) {
       return q.dim === dim && (conf.key === 'quick' ? q.quick : true);
-    });
-    if (conf.key === 'deep') shuffle(block);
-    out = out.concat(block);
+    }));
   });
+  /* 轮转交织出题：避免"整维连续 + 同极连续"带来的顺序与启动效应
+     （v2 只有深度档打乱，且同维所有首字母极题目连在一起） */
+  var out = [];
+  var lastDimIdx = -1, lastFacet = null, lastDir = 0;
+  var totalCount = queues.reduce(function (s, q) { return s + q.length; }, 0);
+  while (out.length < totalCount) {
+    var picked = false;
+    for (var offset = 1; offset <= queues.length && !picked; offset++) {
+      var qi = (lastDimIdx + offset) % queues.length;
+      if (lastDimIdx < 0) qi = offset - 1;
+      var q = queues[qi];
+      if (!q.length) continue;
+      /* 优先选与上一题"不同侧面且不同方向"的题，进一步削弱定势 */
+      var idx = 0;
+      for (var k = 0; k < q.length; k++) {
+        if (q[k].facet !== lastFacet && q[k].dir !== lastDir) { idx = k; break; }
+      }
+      var item = q.splice(idx, 1)[0];
+      out.push(item);
+      lastDimIdx = qi;
+      lastFacet = item.facet;
+      lastDir = item.dir;
+      picked = true;
+    }
+    if (!picked) break;
+  }
   return out;
+}
+
+/* 某一档实际包含的题目（确定性：用于计分与置信度的分母） */
+function modeItems(modeKey) {
+  var conf = modeConf(modeKey);
+  return questionBank().filter(function (q) {
+    return conf.key === 'quick' ? q.quick : true;
+  });
 }
 
 /* ================= 计分核心（纯函数，可测试） =================
@@ -470,9 +504,12 @@ function buildQuestionSet(modeKey) {
      easterEgg（四维全部倾向模糊）, type
    }                                                          */
 function computeResult(answers, mode) {
-  var bank = questionBank();
-  answers = answers || {};
   var conf = modeConf(mode);
+  /* 关键：分母必须是"本档实际出现的题目"。
+     v2 用全库题数当分母，快速档答满 24 题时 coverage 仍只有 6/15=0.4，
+     导致快速档置信度被硬压到 ~34%（且结果页显示 6/15 题）。 */
+  var set = modeItems(conf.key);
+  answers = answers || {};
   var res = {
     mode: conf.key, modeLabel: conf.label, bankVersion: bankVersion(),
     letters: '', dims: {}, easterEgg: false, type: null,
@@ -484,15 +521,18 @@ function computeResult(answers, mode) {
   DIMS.forEach(function (dim) {
     var A = dim[0];          // 首字母极（E/S/T/J）
     var B = dim[1];          // 次字母极（I/N/F/P）
-    var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0, total = 0;
+    var items = set.filter(function (q) { return q.dim === dim; });
+    var total = items.length;
+    var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0;
+    var facetMap = {};
 
-    bank.forEach(function (q) {
-      if (q.dim !== dim) return;
-      total++;
+    items.forEach(function (q) {
       var r = answers[q.id];
       if (r === null || r === undefined) return;
       answered++;
       if (q.dir > 0) { sumB += r; cntB++; } else { sumA += r; cntA++; }
+      var f = facetMap[q.facet] || (facetMap[q.facet] = { sumA: 0, nA: 0, sumB: 0, nB: 0 });
+      if (q.dir > 0) { f.sumB += r; f.nB++; } else { f.sumA += r; f.nA++; }
     });
 
     var avgA = cntA ? sumA / cntA : 0;
@@ -503,17 +543,35 @@ function computeResult(answers, mode) {
     var strength = Math.min(100, Math.round(Math.abs(pctB - 50) * 2));
     var amb = Math.abs(score) <= 1;                // 倾向模糊判定
 
-    // 置信度：覆盖率 × 倾向强度（快速档即使答满也留出不确定性上限）
+    /* 侧面级一致性：4 个内容侧面的倾向是否指向同一端 */
+    var facets = Object.keys(facetMap).map(function (name) {
+      var f = facetMap[name];
+      var a = f.nA ? f.sumA / f.nA : 0;
+      var b = f.nB ? f.sumB / f.nB : 0;
+      var lean = (b - a) / 2;
+      return { name: name, lean: lean, letter: Math.abs(lean) <= 0.5 ? '' : (lean > 0 ? B : A) };
+    });
+    var agreeA = facets.filter(function (f) { return f.lean < -0.5; }).length;
+    var agreeB = facets.filter(function (f) { return f.lean > 0.5; }).length;
+    var facetAgreement = facets.length ? Math.max(agreeA, agreeB) / facets.length : 0;
+
+    /* 置信度（可解释的四因子模型）：
+       覆盖率 × 题量饱和因子 × 侧面一致度 × 倾向强度
+       - 题量饱和：1-exp(-n/8) —— 6 题≈0.53、16 题≈0.87（题越多越稳）
+       - 侧面一致度：4 个侧面里指向同端的比例（分歧大 = 结果不稳） */
     var coverage = total ? Math.min(1, answered / total) : 0;
-    var modeFactor = conf.key === 'quick' ? 0.86 : 1;
+    var sat = 1 - Math.exp(-total / 8);
     var strengthRate = Math.min(1, strength / 70);
-    var confidence = Math.round(100 * coverage * modeFactor * (0.45 + 0.55 * strengthRate));
+    var confidence = Math.round(100 * coverage * sat * (0.45 + 0.55 * strengthRate) *
+      (0.55 + 0.45 * facetAgreement));
     confidence = Math.max(0, Math.min(100, confidence));
 
     if (!amb) allAmb = false;
     res.dims[dim] = {
       A: A, B: B, score: score, pctB: pctB, letter: letter, strength: strength,
       amb: amb, confidence: confidence, answered: answered, total: total,
+      facets: facets, facetAgreement: facetAgreement,
+      facetSummary: (agreeB >= agreeA ? agreeB : agreeA) + '/' + facets.length,
       label: amb ? (A + '/' + B) : letter
     };
     res.letters += letter;
@@ -524,7 +582,7 @@ function computeResult(answers, mode) {
   // 一致性检查：配对题（语义互为镜像的两题）若被同时强烈认同/同时强烈否认，
   // 说明作答在该构念上自相矛盾（poles 一正一负即矛盾）
   var pairs = {};
-  bank.forEach(function (q) {
+  set.forEach(function (q) {
     if (!q.pair) return;
     var r = answers[q.id];
     if (r === null || r === undefined) return;
@@ -1054,8 +1112,9 @@ function finishTest() {
 }
 
 /* ---------- 雷达图（Canvas） ---------- */
+/* 实时百分比必须按"当前档位"计算（v3 修正：此前漏传档位，快速档会按深度档分母算） */
 function pctFromAnswers(answers) {
-  var temp = computeResult(answers);
+  var temp = computeResult(answers, (typeof testState !== 'undefined' && testState.mode) || DEFAULT_MODE);
   return DIMS.map(function (d) { return temp.dims[d].pctB; });
 }
 
@@ -1295,11 +1354,18 @@ function renderConfidence(res) {
   var rows = DIMS.map(function (dim) {
     var d = res.dims[dim];
     var cls = d.confidence >= 70 ? 'high' : (d.confidence >= 45 ? 'mid' : 'low');
+    /* 侧面一致性：4 个内容侧面是否指向同一端（分歧大 = 结果不稳） */
+    var facetTxt = d.facetSummary + ' 侧面同向';
+    var facetCls = d.facetAgreement >= 1 ? 'ok' : (d.facetAgreement >= 0.75 ? 'soso' : 'split');
     return '<div class="conf-row">' +
       '<span class="conf-label">' + DIM_LABELS[dim] + '</span>' +
       '<div class="conf-track"><i class="conf-fill ' + cls + '" data-w="' + d.confidence + '"></i></div>' +
       '<span class="conf-val">' + d.confidence + '%</span>' +
       '<span class="conf-letter">' + d.label + '</span>' +
+      '</div>' +
+      '<div class="conf-facets ' + facetCls + '"><span class="cf-tag">' + d.answered + '/' + d.total + ' 题</span>' +
+      '<span class="cf-txt">' + facetTxt + '</span>' +
+      (d.facetAgreement <= 0.5 ? '<span class="cf-warn">⚠️ 侧面分歧较大</span>' : '') +
       '</div>';
   }).join('');
 
@@ -2038,7 +2104,7 @@ function buildReportImage(res) {
     ctx.fillText('MBTI 是偏好参考，不是科学判刑；人格是流动的，别让标签定义你', W / 2, H - 84);
     ctx.fillStyle = 'rgba(108,99,255,0.7)';
     ctx.font = '500 22px ' + FONT;
-    ctx.fillText('shay-ckm.github.io/-mbti-test · 24 题快速档 / 60 题深度档', W / 2, H - 44);
+    ctx.fillText('shay-ckm.github.io/-mbti-test · 24 题快速档 / 64 题深度档', W / 2, H - 44);
 
     downloadCanvas(cv, '我的MBTI完整报告-' + res.letters + '.png', '完整报告长图已保存 🎉');
   } catch (e) {
@@ -2462,6 +2528,7 @@ if (typeof module !== 'undefined' && module.exports) {
     bankVersion: bankVersion,
     modeConf: modeConf,
     buildQuestionSet: buildQuestionSet,
+    modeItems: modeItems,
     computeResult: computeResult,
     answeredCount: answeredCount,
     computeRelation: computeRelation,

@@ -52,7 +52,8 @@ console.log('MBTI 静态契约测试\n');
     'assets/og-image.png', 'assets/icon-192.png', 'assets/icon-512.png', 'assets/apple-touch-icon.png',
     'assets/fonts/fonts.css', 'assets/fonts/inter-var.woff2',
     'tools/make-icons.js', 'tools/fetch-fonts.js', 'tools/make-type-pages.js', 'tools/push-via-api.js',
-    'mbti-static.test.js', 'mbti-logic.test.js', 'mbti-smoke.test.js', 'mbti-sw.test.js',
+    'tools/verify-deploy.js', 'tools/audit-css.js', 'tools/audit-bank.js',
+    'mbti-static.test.js', 'mbti-logic.test.js', 'mbti-psychometrics.test.js', 'mbti-smoke.test.js', 'mbti-sw.test.js',
     'package.json', '.github/workflows/ci.yml'];
   const missing = files.filter(f => !exists(f));
   check('必需文件齐备（' + files.length + ' 个）', missing.length === 0, missing.join(', '));
@@ -127,7 +128,7 @@ console.log('MBTI 静态契约测试\n');
   const qbank = require('./data/questions.js');
   const profile = require('./data/profile.js').TYPE_PROFILE;
 
-  check('题库共 60 题', qbank.QUESTIONS.length === 60, String(qbank.QUESTIONS.length));
+  check('题库共 64 题（v3）', qbank.QUESTIONS.length === 64, String(qbank.QUESTIONS.length));
   check('题库版本号 ≥2', qbank.BANK_VERSION >= 2, String(qbank.BANK_VERSION));
 
   const quick = qbank.QUESTIONS.filter(q => q.quick);
@@ -139,7 +140,7 @@ console.log('MBTI 静态契约测试\n');
     const items = qbank.QUESTIONS.filter(q => q.dim === d);
     const first = items.filter(q => q.dir < 0).length;
     const second = items.filter(q => q.dir > 0).length;
-    check('深度档 ' + d + ' 15 题且极性差 ≤1', items.length === 15 && Math.abs(first - second) <= 1,
+    check('深度档 ' + d + ' 16 题且极性 8:8', items.length === 16 && first === 8 && second === 8,
       items.length + ' 题 / ' + first + ':' + second);
     const q = quick.filter(x => x.dim === d);
     check('快速档 ' + d + ' 6 题且极性 3:3', q.length === 6 && q.filter(x => x.dir < 0).length === 3,
@@ -149,7 +150,8 @@ console.log('MBTI 静态契约测试\n');
   check('每题字段完整（id/dim/dir/facet/quick/text）',
     qbank.QUESTIONS.every(q => q.id && q.dim && (q.dir === 1 || q.dir === -1) &&
       q.facet && typeof q.quick === 'boolean' && typeof q.text === 'string' && q.text.length > 6));
-  check('题目 id 唯一', new Set(qbank.QUESTIONS.map(q => q.id)).size === 60);
+  check('题目 id 唯一', new Set(qbank.QUESTIONS.map(q => q.id)).size === qbank.QUESTIONS.length,
+    new Set(qbank.QUESTIONS.map(q => q.id)).size + '/' + qbank.QUESTIONS.length);
   check('题干无对比句式（而不是/比起/比…更重要）',
     !qbank.QUESTIONS.some(q => /而不是|比起|比.*更重要/.test(q.text)));
 

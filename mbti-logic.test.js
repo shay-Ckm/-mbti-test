@@ -2,7 +2,7 @@
    逻辑测试 v2（Node 运行：node mbti-logic.test.js）
    ------------------------------------------------------------
    覆盖：
-   1. 题库结构：60 题 / 每维 15 题 / 快速档 24 题 / 极性配平 / 无对比句式 / 配对题成组
+   1. 题库结构：64 题 / 每维 16 题（8:8）/ 4 个共享 facet / 快速档 24 题（3:3）/ 无对比句式 / 镜像题成组
    2. 选题器：双档位题量、快速子集、深度档维度分块连续
    3. 计分：极端作答的字母与置信度
    4. 中立与彩蛋
@@ -46,12 +46,12 @@ function answersFor(set, pole) {
 
 console.log('MBTI 逻辑测试 v2\n');
 
-// 1. 题库结构
+// 1. 题库结构（v3 契约）
 {
   const bank = questionBank();
-  assert('题库共 60 题', bank.length === 60, '实际 ' + bank.length);
-  assert('题库版本已定义', bankVersion() >= 2, String(bankVersion()));
-  DIMS.forEach(d => assert(d + ' 维度 15 题', bank.filter(q => q.dim === d).length === 15));
+  assert('题库共 64 题', bank.length === 64, '实际 ' + bank.length);
+  assert('题库版本 ≥ 3', bankVersion() >= 3, String(bankVersion()));
+  DIMS.forEach(d => assert(d + ' 维度 16 题', bank.filter(q => q.dim === d).length === 16));
 
   const quick = bank.filter(q => q.quick);
   assert('快速档共 24 题', quick.length === 24, '实际 ' + quick.length);
@@ -60,12 +60,32 @@ console.log('MBTI 逻辑测试 v2\n');
     const first = qs.filter(q => q.dir < 0).length;
     const second = qs.filter(q => q.dir > 0).length;
     assert('快速档 ' + d + ' 6 题且极性 3:3', qs.length === 6 && first === 3 && second === 3, qs.length + ' / ' + first + ':' + second);
+    /* 快速档必须覆盖该维全部内容侧面 */
+    const qFacets = new Set(qs.map(q => q.facet));
+    const allFacets = new Set(bank.filter(q => q.dim === d).map(q => q.facet));
+    assert('快速档 ' + d + ' 覆盖全部侧面（' + allFacets.size + ' 个）', qFacets.size === allFacets.size,
+      '覆盖 ' + qFacets.size + '/' + allFacets.size);
   });
   DIMS.forEach(d => {
     const qs = bank.filter(q => q.dim === d);
     const first = qs.filter(q => q.dir < 0).length;
     const second = qs.filter(q => q.dir > 0).length;
-    assert('深度档 ' + d + ' 极性差 ≤1', Math.abs(first - second) <= 1, first + ':' + second);
+    assert('深度档 ' + d + ' 极性严格 8:8', first === 8 && second === 8, first + ':' + second);
+  });
+
+  /* 侧面结构：每维 4 个共享侧面，每侧面两侧各 2 题（差值分数才代表同一构念的两端） */
+  DIMS.forEach(d => {
+    const qs = bank.filter(q => q.dim === d);
+    const facets = {};
+    qs.forEach(q => {
+      const f = facets[q.facet] || (facets[q.facet] = { a: 0, b: 0 });
+      if (q.dir < 0) f.a++; else f.b++;
+    });
+    const names = Object.keys(facets);
+    assert(d + ' 有 4 个内容侧面', names.length === 4, names.join(','));
+    const balanced = names.filter(n => facets[n].a === 2 && facets[n].b === 2);
+    assert(d + ' 每个侧面两侧各 2 题', balanced.length === names.length,
+      names.map(n => n + ':' + facets[n].a + '/' + facets[n].b).join(' '));
   });
 
   assert('题目 id 唯一', new Set(bank.map(q => q.id)).size === bank.length);
@@ -75,27 +95,71 @@ console.log('MBTI 逻辑测试 v2\n');
   const badText = bank.filter(q => /而不是|比起|比.*更重要/.test(q.text));
   assert('题干无对比句式', badText.length === 0, badText.map(q => q.id).join(','));
 
+  /* 近似重复检测：字级 bigram Jaccard ≥ 0.65 视为重复 */
+  const grams = bank.map(q => {
+    const s = new Set();
+    for (let i = 0; i < q.text.length - 1; i++) s.add(q.text.slice(i, i + 2));
+    return s;
+  });
+  const dups = [];
+  for (let i = 0; i < bank.length; i++) {
+    for (let j = i + 1; j < bank.length; j++) {
+      let inter = 0;
+      grams[i].forEach(g => { if (grams[j].has(g)) inter++; });
+      const sim = inter / (grams[i].size + grams[j].size - inter);
+      if (sim >= 0.65) dups.push(bank[i].id + '/' + bank[j].id + '=' + sim.toFixed(2));
+    }
+  }
+  assert('题干无近似重复（Jaccard < 0.65）', dups.length === 0, dups.join(', '));
+
   const pairs = {};
   bank.filter(q => q.pair).forEach(q => { (pairs[q.pair] = pairs[q.pair] || []).push(q); });
   const pairKeys = Object.keys(pairs);
   assert('配对题成组（每组 2 题）', pairKeys.length >= 2 && pairKeys.every(k => pairs[k].length === 2), pairKeys.map(k => k + ':' + pairs[k].length).join(', '));
+  assert('8 组镜像题、每维 2 组', pairKeys.length === 8, String(pairKeys.length));
+  DIMS.forEach(d => {
+    const n = pairKeys.filter(k => pairs[k][0].dim === d).length;
+    assert(d + ' 有 2 组镜像题', n === 2, String(n));
+  });
 }
 
-// 2. 选题器
+// 2. 选题器（含交织出题：削弱顺序与启动效应）
 {
   const quick = buildQuestionSet('quick');
   const deep = buildQuestionSet('deep');
   assert('快速档选题 24 题', quick.length === 24, String(quick.length));
-  assert('深度档选题 60 题', deep.length === 60, String(deep.length));
+  assert('深度档选题 64 题', deep.length === 64, String(deep.length));
   assert('快速档题目全部来自 quick 标记', quick.every(q => q.quick));
-  assert('深度档覆盖全部题库', new Set(deep.map(q => q.id)).size === 60);
-  DIMS.forEach(d => {
-    const idx = deep.map((q, i) => [q, i]).filter(x => x[0].dim === d).map(x => x[1]);
-    const sorted = idx.slice().sort((a, b) => a - b);
-    assert(d + ' 在深度档中为连续维度块', JSON.stringify(idx) === JSON.stringify(sorted));
-  });
+  assert('深度档覆盖全部题库', new Set(deep.map(q => q.id)).size === 64);
+
+  /* 同一维度不应连续成块出现（v2 是整维连续，会形成答题定势） */
+  let maxRun = 1, run = 1;
+  for (let i = 1; i < deep.length; i++) {
+    run = deep[i].dim === deep[i - 1].dim ? run + 1 : 1;
+    maxRun = Math.max(maxRun, run);
+  }
+  assert('深度档同维连续 ≤3 题（交织出题）', maxRun <= 3, '最长 ' + maxRun);
+
+  /* 同一方向（同一极）也不应长时间连续，避免"一路同意"的定势 */
+  let maxDirRun = 1; run = 1;
+  for (let i = 1; i < deep.length; i++) {
+    run = deep[i].dir === deep[i - 1].dir ? run + 1 : 1;
+    maxDirRun = Math.max(maxDirRun, run);
+  }
+  assert('深度档同方向连续 ≤4 题', maxDirRun <= 4, '最长 ' + maxDirRun);
+
+  /* 每次出题顺序应不同（随机化生效） */
+  const orders = new Set();
+  for (let i = 0; i < 8; i++) orders.add(buildQuestionSet('deep').map(q => q.id).join(','));
+  assert('出题顺序随机化（8 次至少 6 种顺序）', orders.size >= 6, String(orders.size));
+  assert('快速档也随机化（8 次至少 4 种顺序）',
+    new Set(Array.from({ length: 8 }, () => buildQuestionSet('quick').map(q => q.id).join(','))).size >= 4);
+
   assert('未知档位回退到默认档', ['quick', 'deep'].indexOf(api.modeConf('nope').key) >= 0);
-  assert('MODES 定义了 quick 与 deep', !!MODES.quick && !!MODES.deep && MODES.quick.count === 24 && MODES.deep.count === 60);
+  assert('MODES 定义 quick 24 / deep 64', !!MODES.quick && !!MODES.deep && MODES.quick.count === 24 && MODES.deep.count === 64);
+  assert('modeItems 返回本档题目数（分母正确性）',
+    api.modeItems('quick').length === 24 && api.modeItems('deep').length === 64,
+    api.modeItems('quick').length + '/' + api.modeItems('deep').length);
 }
 
 // 3. 计分正确性
@@ -144,7 +208,7 @@ console.log('MBTI 逻辑测试 v2\n');
   const rd = computeResult(answersFor(buildQuestionSet('deep'), 'second'), 'deep');
   assert('快速档置信度不高于深度档', rq.overallConfidence <= rd.overallConfidence, rq.overallConfidence + ' vs ' + rd.overallConfidence);
   assert('结果带档位与题库版本', rq.mode === 'quick' && rd.mode === 'deep' && rd.bankVersion === bankVersion());
-  assert('结果带作答数与模式名', rd.answered === 60 && typeof rd.modeLabel === 'string');
+  assert('结果带作答数与模式名', rd.answered === 64 && typeof rd.modeLabel === 'string', String(rd.answered));
 }
 
 // 7. 部分作答与空作答
@@ -154,7 +218,7 @@ console.log('MBTI 逻辑测试 v2\n');
   set.filter(q => q.dim === 'EI').forEach(q => { partial[q.id] = (q.dir > 0 ? 3 : -3); });
   const res = computeResult(partial, 'deep');
   assert('部分作答不崩溃', !!res.dims.EI && res.dims.SN.answered === 0);
-  assert('已答维度计数正确', res.dims.EI.answered === 15 && res.answered === 15, 'answered=' + res.answered);
+  assert('已答维度计数正确', res.dims.EI.answered === 16 && res.answered === 16, 'answered=' + res.answered);
   assert('未答维度置信度为 0', res.dims.SN.confidence === 0);
   assert('空作答不崩溃', computeResult({}, 'deep').answered === 0);
   assert('null 作答不崩溃', computeResult(null, 'deep').easterEgg === true);
@@ -229,6 +293,71 @@ console.log('MBTI 逻辑测试 v2\n');
   assert('经典互补有序组合共 16 组', golden === 16, String(golden));
 
   assert('共同点/差异点文字来自维度规则', /E\/I|S\/N|T\/F|J\/P/.test(computeRelation('INTJ', 'ESFP').complement.join('')));
+}
+
+// 9. 置信度模型 / 侧面一致性 / 响应定势（v3 新增）
+{
+  const quickSet = buildQuestionSet('quick');
+  const deepSet = buildQuestionSet('deep');
+
+  /* 9.1 分母必须是本档题量（v2 的 bug：快速档用全库 15 题当分母 → 置信度被压到 ~34%） */
+  const quickFull = computeResult(answersFor(quickSet, 'second'), 'quick');
+  const deepFull = computeResult(answersFor(deepSet, 'second'), 'deep');
+  DIMS.forEach(d => {
+    assert('快速档 ' + d + ' 总题数为 6（本档分母）', quickFull.dims[d].total === 6, String(quickFull.dims[d].total));
+    assert('快速档 ' + d + ' 答满后 answered=total', quickFull.dims[d].answered === 6 && quickFull.dims[d].answered === quickFull.dims[d].total);
+  });
+  assert('快速档答满后总体置信度明显高于 v2（≥45）', quickFull.overallConfidence >= 45, String(quickFull.overallConfidence));
+  assert('深度档答满后总体置信度 ≥70', deepFull.overallConfidence >= 70, String(deepFull.overallConfidence));
+  assert('深度档置信度高于快速档', deepFull.overallConfidence > quickFull.overallConfidence,
+    deepFull.overallConfidence + ' vs ' + quickFull.overallConfidence);
+
+  /* 9.2 侧面级一致性数据 */
+  DIMS.forEach(d => {
+    const info = deepFull.dims[d];
+    assert(d + ' 输出 4 个侧面明细', Array.isArray(info.facets) && info.facets.length === 4, String(info.facets && info.facets.length));
+    assert(d + ' 侧面一致度为 0.25 的整数倍', [0.25, 0.5, 0.75, 1].indexOf(info.facetAgreement) >= 0, String(info.facetAgreement));
+    assert(d + ' 倾向一致时侧面一致度为 1', info.facetAgreement === 1, String(info.facetAgreement));
+  });
+
+  /* 9.3 响应定势：全部同意 / 全部不同意 都不应产出确定类型（配平计分的作用） */
+  const allBank = questionBank();
+  const allAgree = {}; allBank.forEach(q => { allAgree[q.id] = 3; });
+  const allDisagree = {}; allBank.forEach(q => { allDisagree[q.id] = -3; });
+  const ra = computeResult(allAgree, 'deep');
+  const rd = computeResult(allDisagree, 'deep');
+  assert('全部同意 → 四维全部判为模糊（配平计分抵消默认同意）',
+    DIMS.every(d => ra.dims[d].amb), ra.letters + ' / ' + DIMS.map(d => ra.dims[d].pctB).join(','));
+  assert('全部同意 → 触发"框不住你"彩蛋', ra.easterEgg === true);
+  assert('全部不同意 → 同样不产出确定类型', DIMS.every(d => rd.dims[d].amb), rd.letters);
+
+  /* 9.4 无系统性偏向：随机作答者的两极比例应接近 50:50 */
+  let seed = 20240927;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const vals = [-3, -1, 1, 3];
+  const firstCount = { EI: 0, SN: 0, TF: 0, JP: 0 };
+  const N = 400;
+  for (let i = 0; i < N; i++) {
+    const a = {};
+    allBank.forEach(q => { a[q.id] = vals[Math.floor(rnd() * 4)]; });
+    const r = computeResult(a, 'deep');
+    DIMS.forEach(d => { if (r.dims[d].letter === d[0]) firstCount[d]++; });
+  }
+  DIMS.forEach(d => {
+    const share = firstCount[d] / N;
+    assert(d + ' 随机作答无系统性偏向（首字母极占比 45%~55%）', share >= 0.45 && share <= 0.55,
+      (share * 100).toFixed(1) + '%');
+  });
+
+  /* 9.5 镜像题矛盾检测 */
+  const contradiction = {};
+  const pairIds = allBank.filter(q => q.pair === 'C-EI-1');
+  pairIds.forEach(q => { contradiction[q.id] = 3; });   // 两道镜像题都强同意 = 自相矛盾
+  const rc = computeResult(contradiction, 'deep');
+  assert('镜像题同时强同意 → 检出不一致', rc.consistencyIssues >= 1, String(rc.consistencyIssues));
+  const consistent = {};
+  pairIds.forEach(q => { consistent[q.id] = q.dir < 0 ? 3 : -3; });  // 一致指向首字母极
+  assert('镜像题一致作答 → 不误报', computeResult(consistent, 'deep').consistencyIssues === 0);
 }
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败');

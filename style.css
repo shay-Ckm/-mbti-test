@@ -1349,6 +1349,29 @@ main { position: relative; z-index: 2; }
 .conf-fill.low { background: linear-gradient(90deg, #F0932B, #F5A623); }
 .conf-val { font-size: 0.8rem; font-weight: 700; color: var(--dark-soft); text-align: right; font-variant-numeric: tabular-nums; }
 .conf-letter { font-size: 0.82rem; font-weight: 800; color: var(--tcolor-ink, var(--tcolor)); text-align: right; }
+
+/* 侧面一致性行（结果可靠度的第二行） */
+.conf-facets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 0 10px 54px;
+  margin-top: -6px;
+  font-size: 0.76rem;
+  color: var(--dark-soft);
+}
+.conf-facets .cf-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(108, 99, 255, 0.1);
+  color: var(--primary);
+  font-weight: 600;
+}
+.conf-facets.ok .cf-txt { color: #04795F; font-weight: 600; }
+.conf-facets.soso .cf-txt { color: #8A5A00; font-weight: 600; }
+.conf-facets.split .cf-txt { color: #B23B3B; font-weight: 600; }
+.conf-facets .cf-warn { color: #B23B3B; font-weight: 600; }
 .conf-note { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(108, 99, 255, 0.12); }
 
 /* ---------- 结果页：关系与社交 ---------- */
