@@ -12,7 +12,7 @@ Thumbs.db
 __pycache__/
 *.pyc
 
-# Project extras (source materials, not needed for the site)
+# 项目来源素材（站点不需要）
 people.json
 测试问题.txt
 百度翻译.py
@@ -23,6 +23,6 @@ _verify_profile.js
 _temp_*.js
 check-*.js
 
-# ��ʱ��Ͻű�
+# 临时诊断脚本
 _tmp_*.js
 _*.json
