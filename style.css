@@ -158,7 +158,7 @@ img { max-width:100%; height:auto; }
 .home-visual { display:flex; align-items:center; justify-content:center; min-width:0; }
 /* grid/flex 子项默认 min-width:auto 会被内容顶宽 → 窄屏横向溢出，这里统一允许收缩 */
 .home-copy, .home-visual, .home-start, .mode-cards, .home-chips,
-.test-grid, .app-main, .app-side, .result-duo, .stress-grid, .more-grid,
+.test-grid, .result-duo, .stress-grid, .more-grid,
 .options, .live-bars, .rel-picker, .jump-grid { min-width:0; }
 .dial { width:100%; max-width:440px; height:auto; filter:drop-shadow(0 30px 60px rgba(10,6,40,.5)); }
 .dial-hex { transform-origin:220px 220px; animation:dialSpin 26s linear infinite; }
@@ -330,13 +330,8 @@ img { max-width:100%; height:auto; }
    8. 答题页
    ============================================================ */
 .test-wrap { max-width:1240px; }
-.test-top {
-  position:sticky; top:0; z-index:20; display:grid; gap:10px;
-  margin:calc(var(--sp-7) * -1) 0 var(--sp-5); padding:14px 0 12px;
-  background:linear-gradient(180deg, rgba(21,10,51,.92) 0%, rgba(21,10,51,.72) 70%, rgba(21,10,51,0) 100%);
-  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-}
-.tt-row { display:flex; align-items:center; gap:12px; }
+/* 顶部：档位 / 重开（跟随内容流动，不做吸附） */
+.test-top { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
 .logo-mini {
   font-size:.84rem; font-weight:700; letter-spacing:.06em; color:var(--on-dark-1);
   text-decoration:none; padding:7px 13px; border-radius:var(--r-full);
@@ -361,15 +356,8 @@ img { max-width:100%; height:auto; }
 }
 .progress-meta { display:flex; justify-content:space-between; gap:12px; font-size:.8rem; color:var(--on-dark-3); }
 .progress-meta b { color:#fff; font-variant-numeric:tabular-nums; }
-.test-grid { display:grid; grid-template-columns:minmax(0,1fr) 372px; gap:var(--sp-5); align-items:start; }
-.app-main { display:grid; gap:var(--sp-5); min-width:0; }
-.app-side { display:grid; gap:var(--sp-4); position:sticky; top:112px; }
-.q-card { padding:var(--sp-7) var(--sp-6) var(--sp-6); min-height:480px; display:flex; flex-direction:column; justify-content:center; }
-.q-hint {
-  margin:var(--sp-4) 0 0; font-size:.78rem; color:var(--text-4); text-align:center;
-  padding-top:var(--sp-4); border-top:1px dashed var(--line-2);
-}
-.q-hint b { color:var(--tcolor-ink, var(--tcolor)); font-weight:800; }
+.test-grid { display:grid; grid-template-columns:330px minmax(0,1fr); gap:var(--sp-5); align-items:start; }
+.q-card { padding:var(--sp-6); }
 .q-num {
   align-self:flex-start;
   display:inline-flex; align-items:center; gap:8px;
@@ -423,7 +411,7 @@ img { max-width:100%; height:auto; }
 .live-panel { padding:var(--sp-5); }
 .live-head { display:grid; gap:8px; margin-bottom:var(--sp-4); }
 .live-bubble { font-size:.84rem; line-height:1.7; color:var(--text-3); }
-.live-bars { display:grid; gap:11px; }
+.live-bars { display:grid; gap:14px 28px; grid-template-columns:1fr 1fr; }
 .live-bar { display:grid; grid-template-columns:34px minmax(0,1fr) 44px; gap:10px; align-items:center; }
 .lb-label { font-size:.78rem; font-weight:800; color:var(--text-1); letter-spacing:.04em; }
 .lb-track {
@@ -447,7 +435,7 @@ img { max-width:100%; height:auto; }
 .jump-panel { padding:var(--sp-5); }
 .jump-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px; }
 .jump-hint { font-size:.76rem; color:var(--text-4); }
-.jump-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(27px, 1fr)); gap:6px; }
+.jump-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(40px, 1fr)); gap:8px; }
 .jump-dot {
   aspect-ratio:1; border-radius:8px; border:1px solid var(--line-2); background:var(--paper-2);
   font-family:inherit; font-size:.7rem; font-weight:700; color:var(--text-3); cursor:pointer;
@@ -728,14 +716,140 @@ img { max-width:100%; height:auto; }
 @keyframes riseOut { to { opacity:0; transform:translateY(-10px); } }
 
 /* ============================================================
+   15. 玻璃材质主题（答题页 / 结果页）
+   ------------------------------------------------------------
+   这两个页面处于深色画布上，按首页的材质语言统一：
+   半透明玻璃面 + 白色描边 + 背景模糊 + 深色面文字色阶。
+   关系页与类型百科页保持纸面白卡（后续如需可同样切换）。
+   ============================================================ */
+:is(#page-test, #page-result) :is(
+  .desc-card, .gc-card, .fact-card, .trait-panel, .conf-panel, .easter-card,
+  .q-card, .radar-wrap, .live-panel, .jump-panel, .modal-card, .rel-stat, .rel-slot, .rel-side
+) {
+  background:rgba(255,255,255,.075);
+  border-color:rgba(255,255,255,.18);
+  box-shadow:0 26px 60px -34px rgba(0,0,0,.75);
+  color:rgba(255,255,255,.84);
+  backdrop-filter:blur(16px) saturate(130%);
+  -webkit-backdrop-filter:blur(16px) saturate(130%);
+}
+:is(#page-test, #page-result) :is(
+  .stress-item, .more-item, .cl-item, .cl-item-static, .hist-item, .rel-tabs, .q-num
+) {
+  background:rgba(255,255,255,.07);
+  border-color:rgba(255,255,255,.16);
+}
+/* 文字色阶 */
+:is(#page-test, #page-result) :is(
+  .desc-card h3, .gc-card h4, .conf-panel h4, .fact-card h3, .easter-card h2,
+  .trait-label, .conf-label, .lb-label, .live-letters, .q-text, .si-title, .mi-title, .opt
+) { color:#FFFFFF; }
+:is(#page-test, #page-result) :is(
+  .desc-text, .gc-text, .gc-list li, .cl-text, .rel-text, .easter-card p, .m-text,
+  .gc-bar-text, .conf-val, .lb-val, .opt.selected, .rel-tab.active
+) { color:rgba(255,255,255,.84); }
+:is(#page-test, #page-result) :is(
+  .gc-sub, .trait-pct, .cl-tip, .conf-note, .live-bubble, .jump-hint, .radar-hint,
+  .ed-val, .easter-hint, .radar-txt h3, .live-head h3, .jump-head span:first-child,
+  .cf-tag, .hist-delta, .hi-dim, .hi-val.right, .rel-tab, .opt-tag, .m-zh, .type-en
+) { color:rgba(255,255,255,.62); }
+:is(#page-test, #page-result) :is(.cl-item.done .cl-text) { color:rgba(255,255,255,.45); }
+/* 类型色胶囊 / 徽标：深色面上改用同色低透明底 + 白字 */
+:is(#page-test, #page-result) :is(
+  .gc-chip, .live-chip, .gc-num, .gc-quote, .trait-label b, .trait-pct b, .conf-letter,
+  .gc-bar-val, .cl-progress, .hist-type, .ed-label, .q-num, .rel-side b, .rel-stat b
+) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 48%, transparent);
+  color:#FFFFFF;
+}
+:is(#page-test, #page-result) :is(.gc-chip, .live-chip, .gc-quote, .q-num, .rel-side) {
+  border:1px solid color-mix(in srgb, var(--tcolor) 42%, transparent);
+}
+/* 轨道 / 输入面 / 勾选框 */
+:is(#page-test, #page-result) :is(.conf-track, .gc-bar, .rel-bar) { background:rgba(255,255,255,.14); }
+:is(#page-test, #page-result) :is(.lb-track, .trait-track) {
+  background:linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.10));
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.28);
+}
+:is(#page-test, #page-result) :is(.lb-mid) { background:rgba(255,255,255,.30); }
+:is(#page-test, #page-result) :is(.cl-box) { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.30); }
+:is(#page-test, #page-result) :is(.jump-dot) {
+  background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.16); color:rgba(255,255,255,.66);
+}
+:is(#page-test, #page-result) :is(.jump-dot.done) {
+  background:color-mix(in srgb, var(--tcolor) 30%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 55%, transparent); color:#FFFFFF;
+}
+:is(#page-test, #page-result) :is(.opt) {
+  background:rgba(255,255,255,.13);
+  border-color:rgba(255,255,255,.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14);
+}
+:is(#page-test, #page-result) :is(.opt:hover) {
+  background:rgba(255,255,255,.20);
+  border-color:color-mix(in srgb, var(--tcolor) 65%, transparent);
+}
+:is(#page-test, #page-result) :is(.opt.selected) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:var(--tcolor);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--tcolor) 22%, transparent);
+}
+:is(#page-test, #page-result) :is(.opt-key) { background:rgba(255,255,255,.12); color:rgba(255,255,255,.72); }
+:is(#page-test, #page-result) :is(.opt.selected .opt-key) { background:var(--tcolor); color:#FFFFFF; }
+:is(#page-test, #page-result) :is(.opt.selected .opt-tag) { color:rgba(255,255,255,.86); }
+:is(#page-test, #page-result) :is(.opt-indicator) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:var(--tcolor);
+}
+/* 分隔线与其余细节 */
+:is(#page-test, #page-result) :is(.live-foot) { border-top-color:rgba(255,255,255,.16); }
+:is(#page-test, #page-result) :is(.trait-row) { border-bottom-color:rgba(255,255,255,.14); }
+:is(#page-test, #page-result) :is(.cf-tag) { background:rgba(255,255,255,.10); }
+:is(#page-test, #page-result) :is(.trait-knob) { background:#FFFFFF; }
+:is(#page-test, #page-result) :is(.cl-item.done) {
+  background:color-mix(in srgb, var(--tcolor) 22%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 50%, transparent);
+}
+:is(#page-test, #page-result) :is(.m-close) {
+  background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.20); color:#FFFFFF;
+}
+:is(#page-test, #page-result) :is(.ed-track) {
+  background:linear-gradient(90deg, color-mix(in srgb, var(--tcolor) 55%, transparent), rgba(255,255,255,.16) 50%, rgba(255,255,255,.24));
+}
+:is(#page-test, #page-result) :is(.ed-track i) { background:#FFFFFF; border-color:var(--tcolor); }
+:is(#page-test, #page-result) :is(.milestone) { color:#FFFFFF; }
+:is(#page-test, #page-result) :is(.conf-facets.ok .cf-txt) { color:#7DEBEB; }
+:is(#page-test, #page-result) :is(.conf-facets.soso .cf-txt) { color:#F5C06B; }
+:is(#page-test, #page-result) :is(.conf-facets.split .cf-txt, .cf-warn) { color:#FF9B9B; }
+:is(#page-test, #page-result) :is(.trait-amb) { color:#F5C06B; background:rgba(245,166,35,.18); }
+:is(#page-test, #page-result) :is(.golden) {
+  background:rgba(245,166,35,.14) !important; border-color:rgba(245,166,35,.55) !important;
+}
+:is(#page-test, #page-result) :is(.rel-tab.active) {
+  background:linear-gradient(135deg, var(--tcolor), var(--cyan-500)); color:#FFFFFF;
+}
+/* 深色面上的次要按钮也改成玻璃，避免不透明白块突兀 */
+:is(#page-test, #page-result) :is(.btn-ghost, .btn.ghost) {
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+  color:#FFFFFF;
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+:is(#page-test, #page-result) :is(.btn-ghost:hover, .btn.ghost:hover) {
+  background:rgba(255,255,255,.18);
+  border-color:rgba(255,255,255,.34);
+  box-shadow:0 14px 30px -16px rgba(0,0,0,.65);
+}
+
+/* ============================================================
    14. 响应式
    ============================================================ */
 @media (max-width: 1080px) {
   .home-grid { grid-template-columns:minmax(0,1fr); gap:var(--sp-6); }
   .home-visual { order:-1; }
   .dial { max-width:300px; }
-  .test-grid { grid-template-columns:1fr; }
-  .app-side { position:static; }
+  .test-grid { grid-template-columns:minmax(0,1fr); }
   .type-nav { grid-template-columns:repeat(4, minmax(0,1fr)); }
 }
 @media (max-width: 760px) {

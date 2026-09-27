@@ -32,74 +32,67 @@
 
     <h1 class="visually-hidden">MBTI 人格测试答题</h1>
 
-    <!-- 顶部：档位 / 重开 + 进度（吸顶，答题时始终可见） -->
-    <header class="test-top">
-      <div class="tt-row">
-        <a class="logo-mini" href="index.html">✦ 人格实验室</a>
-        <span class="mode-badge" id="modeBadge">深度测试 · 64 题</span>
-        <span class="spacer"></span>
-        <a class="tt-reset" href="#" id="resetLink">↺ 重新开始</a>
-      </div>
-      <div class="progress-track" id="progressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="64" aria-valuenow="0" aria-label="答题进度"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-meta">
-        <span>第 <b id="qCurrent">1</b> / <b id="qTotal">64</b> 题</span>
-        <span>已完成 <b id="qDone">0 / 64</b> 题</span>
-      </div>
-    </header>
+    <!-- 顶部：档位 / 重开 -->
+    <div class="test-top">
+      <a class="logo-mini" href="index.html">✦ 人格实验室</a>
+      <span class="mode-badge" id="modeBadge">深度测试 · 64 题</span>
+      <span class="spacer"></span>
+      <a class="tt-reset" href="#" id="resetLink">↺ 重新开始</a>
+    </div>
+
+    <div class="progress-track" id="progressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="64" aria-valuenow="0" aria-label="答题进度"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-meta">
+      <span>第 <b id="qCurrent">1</b> / <b id="qTotal">64</b> 题</span>
+      <span>已完成 <b id="qDone">0</b> 题</span>
+    </div>
 
     <div class="test-grid">
-      <div class="app-main">
-        <!-- 题目卡片 -->
-        <section class="q-card">
-          <span class="q-num" id="qNum">第 1 题</span>
-          <p class="q-text" id="qText" aria-live="polite"></p>
-          <div class="options" id="options" role="radiogroup" aria-label="请选择你的同意程度"></div>
-
-          <div class="test-nav">
-            <button type="button" class="btn btn-ghost" id="prevBtn">← 上一题</button>
-            <button type="button" class="btn btn-primary" id="nextBtn">下一题 →</button>
-          </div>
-
-          <p class="q-hint">键盘 <b>1-4</b> 选答 · <b>← →</b> 切题 · 进度自动保存，随时可以回来继续</p>
-
-          <!-- 阶段提示（深度测试每 15 题一次） -->
-          <div class="milestone" id="milestone" role="status"></div>
-        </section>
-      </div>
-
-      <aside class="app-side">
-        <!-- 实时雷达图 -->
-        <aside class="radar-wrap">
-          <div class="radar-txt">
-            <h3>四维雷达图</h3>
-            <canvas id="radar" width="230" height="230" aria-label="四维人格倾向雷达图"></canvas>
-            <p class="radar-hint">每次作答都会实时变化 ✨</p>
-          </div>
-        </aside>
-
-        <!-- 实时画像预览 -->
-        <section class="live-panel" id="livePanel">
-          <div class="live-head">
-            <h3>✦ 实时画像预览 ✦</h3>
-            <span class="live-bubble" id="liveBubble" aria-live="polite">嘘——没有标准答案，凭第一直觉选 ✨</span>
-          </div>
-          <div class="live-bars" id="liveBars"></div>
-          <div class="live-foot">
-            <div class="live-letters" id="liveLetters">? · ? · ? · ?</div>
-            <div class="live-chips" id="liveChips"></div>
-          </div>
-        </section>
-
-        <!-- 题号跳转 -->
-        <section class="jump-panel">
-          <div class="jump-head">
-            <span>题号跳转</span>
-            <span class="jump-hint">键盘 1-4 选答案 · ← → 切题</span>
-          </div>
-          <div class="jump-grid" id="jumpGrid"></div>
-        </section>
+      <!-- 实时雷达图 -->
+      <aside class="radar-wrap">
+        <div class="radar-txt">
+          <h3>四维雷达图</h3>
+          <canvas id="radar" width="230" height="230" aria-label="四维人格倾向雷达图"></canvas>
+          <p class="radar-hint">每次作答都会实时变化 ✨</p>
+        </div>
       </aside>
+
+      <!-- 题目卡片 -->
+      <section class="q-card">
+        <span class="q-num" id="qNum">第 1 题</span>
+        <p class="q-text" id="qText" aria-live="polite"></p>
+        <div class="options" id="options" role="radiogroup" aria-label="请选择你的同意程度"></div>
+
+        <div class="test-nav">
+          <button type="button" class="btn btn-ghost" id="prevBtn">← 上一题</button>
+          <button type="button" class="btn btn-primary" id="nextBtn">下一题 →</button>
+        </div>
+
+        <!-- 阶段提示（深度测试每 15 题一次） -->
+        <div class="milestone" id="milestone" role="status"></div>
+      </section>
     </div>
+
+    <!-- 实时画像预览 -->
+    <section class="live-panel" id="livePanel">
+      <div class="live-head">
+        <h3>✦ 实时画像预览 ✦</h3>
+        <span class="live-bubble" id="liveBubble" aria-live="polite">嘘——没有标准答案，凭第一直觉选 ✨</span>
+      </div>
+      <div class="live-bars" id="liveBars"></div>
+      <div class="live-foot">
+        <div class="live-letters" id="liveLetters">? · ? · ? · ?</div>
+        <div class="live-chips" id="liveChips"></div>
+      </div>
+    </section>
+
+    <!-- 题号跳转 -->
+    <section class="jump-panel">
+      <div class="jump-head">
+        <span>题号跳转</span>
+        <span class="jump-hint">键盘 1-4 选答案 · ← → 切题</span>
+      </div>
+      <div class="jump-grid" id="jumpGrid"></div>
+    </section>
   </main>
 
   <div class="toast" id="toast" role="status"></div>
