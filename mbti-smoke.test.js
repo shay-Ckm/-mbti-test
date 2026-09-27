@@ -81,7 +81,7 @@ const elements = {};
   '#typePageLink', '#reportImgBtn', '#printBtn',
   /* 关系匹配页 */
   '#page-relation', '#relSlotA', '#relSlotB', '#relPickGrid', '#relRandom', '#relHint', '#relResult', '#relMatrix',
-  '#easterCard', '#easterRetest', '#easterHome', '#partnerModal', '#partnerClose', '#partnerEmoji',
+  '#easterCard', '#easterDims', '#easterRetest', '#easterHome', '#partnerModal', '#partnerClose', '#partnerEmoji',
   '#partnerType', '#partnerZh', '#partnerText',
   /* 公共 */
   '#toast'
@@ -104,9 +104,12 @@ global.window = {
   innerWidth: 1200,
   innerHeight: 800,
   matchMedia: () => ({ matches: false }),
+  /* navigate() 会在 250ms 后写 window.location.href，桩必须提供该对象 */
+  location: { href: '', protocol: 'http:', origin: 'http://localhost', pathname: '/index.html' },
   print() { global.__printed = true; }
 };
 global.requestAnimationFrame = fn => setTimeout(() => fn(Date.now()), 0);
+global.cancelAnimationFrame = () => {};
 global.location = { href: '', origin: 'https://example.test', pathname: '/index.html' };
 global.confirm = () => true;
 
@@ -248,6 +251,70 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
     global.__printed = false;
     fire(elements['#printBtn'], 'click');
     check('打印/存为 PDF 按钮调用 window.print', global.__printed === true);
+
+    /* ---- 完整作答流程（回归：温和但一致的作答必须给出明确类型） ---- */
+    const resetStore = () => {
+      store['mbti_answers'] = JSON.stringify({});
+      store['mbti_result'] = JSON.stringify(null);
+      store['mbti_current'] = JSON.stringify(0);
+      store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
+      store['mbti_mode'] = JSON.stringify('deep');
+      store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    };
+    const answerAll = keyFor => {
+      document.body.id = 'page-test';
+      api.init();
+      const kd3 = docListeners.keydown || [];
+      for (let i = 0; i < deepSet.length; i++) {
+        const idx = Number(JSON.parse(store['mbti_current'] || '0')) || i;
+        const q = deepSet[idx] || deepSet[i];
+        kd3.forEach(fn => fn({ key: keyFor(q, i), target: null }));
+        if (i < deepSet.length - 1) fire(elements['#nextBtn'], 'click');
+      }
+      fire(elements['#nextBtn'], 'click');   // 最后一题 → 查看结果（finishTest）
+    };
+
+    // A. 只用「同意 / 不同意」——真人最常见的作答方式（旧逻辑必出彩蛋，回归点）
+    resetStore();
+    answerAll(q => (q.dir < 0 ? '2' : '3'));
+    let storedRes = JSON.parse(store['mbti_result'] || 'null');
+    check('完整作答已记录 64 题',
+      Object.keys(JSON.parse(store['mbti_answers'] || '{}')).length === deepSet.length,
+      Object.keys(JSON.parse(store['mbti_answers'] || '{}')).length + '/' + deepSet.length);
+    check('温和一致作答不触发"框不住你"彩蛋', !!storedRes && storedRes.easterEgg === false,
+      storedRes ? String(storedRes.easterEgg) : 'null');
+    check('温和一致作答得到确定类型（全首字母极）', !!storedRes && storedRes.letters === 'ESTJ',
+      storedRes ? storedRes.letters : 'null');
+    check('温和一致作答四维均非模糊', !!storedRes && DIMS.every(d => storedRes.dims[d].amb === false),
+      storedRes ? DIMS.map(d => d + ':' + storedRes.dims[d].amb).join(' ') : 'null');
+    check('温和一致作答落点为 33%（2:1 倾向）', !!storedRes && storedRes.dims.EI.pctB === 33,
+      storedRes ? String(storedRes.dims.EI.pctB) : 'null');
+
+    // B. 极端一致作答
+    resetStore();
+    answerAll(q => (q.dir < 0 ? '1' : '4'));
+    storedRes = JSON.parse(store['mbti_result'] || 'null');
+    check('极端一致作答得到类型且置信度更高',
+      !!storedRes && storedRes.easterEgg === false && storedRes.overallConfidence > 60,
+      storedRes ? storedRes.letters + ' ' + storedRes.overallConfidence + '%' : 'null');
+
+    // C. 全程「同意」（默认同意定势）→ 配平计分应判为模糊，并显示带四维落点的彩蛋页
+    resetStore();
+    answerAll(() => '1');
+    storedRes = JSON.parse(store['mbti_result'] || 'null');
+    check('全程同意 → 判为模糊（配平计分抵消默认同意）', !!storedRes && storedRes.easterEgg === true,
+      storedRes ? String(storedRes.easterEgg) : 'null');
+    document.body.id = 'page-result';
+    elements['#resultMain'].style.display = '';
+    elements['#easterCard'].style.display = 'none';
+    elements['#easterDims'].innerHTML = '';
+    api.init();
+    check('模糊结果页显示彩蛋卡', elements['#easterCard'].style.display === 'block',
+      String(elements['#easterCard'].style.display));
+    check('彩蛋卡内含四维落点信息（不再是死胡同）',
+      (elements['#easterDims'].innerHTML.match(/ed-row/g) || []).length === 4 &&
+      /%/.test(elements['#easterDims'].innerHTML) && /居中/.test(elements['#easterDims'].innerHTML),
+      elements['#easterDims'].innerHTML.slice(0, 80));
 
     /* ---- 等待异步动画回调 ---- */
     await new Promise(r => setTimeout(r, 120));

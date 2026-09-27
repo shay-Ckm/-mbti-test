@@ -541,7 +541,11 @@ function computeResult(answers, mode) {
     var pctB = Math.round(50 + (score / 3) * 50);  // ∈ [0, 100]，50 为中立
     var letter = pctB >= 50 ? B : A;
     var strength = Math.min(100, Math.round(Math.abs(pctB - 50) * 2));
-    var amb = Math.abs(score) <= 1;                // 倾向模糊判定
+    /* 倾向模糊判定：必须严格小于 1。
+       量表是 {-3,-1,1,3}，如果只用"同意/不同意"（+1/-1）作答，
+       完全一致的作答也会得到 |score| = 1 —— 旧逻辑用 <= 1 会把这类
+       "温和但明确"的结果误判为四维全模糊（从而总是显示彩蛋页）。 */
+    var amb = Math.abs(score) < 1;
 
     /* 侧面级一致性：4 个内容侧面的倾向是否指向同一端 */
     var facets = Object.keys(facetMap).map(function (name) {
@@ -1254,11 +1258,29 @@ function initResult() {
   if (res.easterEgg) {
     $('#resultMain').style.display = 'none';
     $('#easterCard').style.display = 'block';
+    renderEasterDims(res);
     bindEasterButtons();
     return;
   }
 
   renderResult(res);
+}
+
+/* 彩蛋页也给出信息：四个维度的实际落点（都贴中线才叫"框不住"） */
+function renderEasterDims(res) {
+  var box = $('#easterDims');
+  if (!box) return;
+  box.innerHTML = DIMS.map(function (dim) {
+    var d = res.dims[dim];
+    var lean = d.pctB >= 50 ? d.B : d.A;
+    var dev = Math.abs(d.pctB - 50);
+    return '<div class="ed-row">' +
+      '<span class="ed-label">' + DIM_LABELS[dim] + '</span>' +
+      '<div class="ed-track"><i style="left:' + Math.min(100, Math.max(0, d.pctB)) + '%"></i></div>' +
+      '<span class="ed-val">' + d.pctB + '% <b>' + d.A + '</b>·<b>' + d.B + '</b></span>' +
+      '<span class="ed-note">' + (dev <= 8 ? '几乎居中' : '略偏 ' + DIM_FULL[dim][d.pctB >= 50 ? 1 : 0]) + '</span>' +
+      '</div>';
+  }).join('');
 }
 
 function renderResult(res) {

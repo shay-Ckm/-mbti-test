@@ -331,6 +331,31 @@ console.log('MBTI 逻辑测试 v2\n');
   assert('全部同意 → 触发"框不住你"彩蛋', ra.easterEgg === true);
   assert('全部不同意 → 同样不产出确定类型', DIMS.every(d => rd.dims[d].amb), rd.letters);
 
+  /* 9.3b 回归：温和但一致的作答（只用「同意/不同意」= ±1）必须给出确定类型。
+     量表为 {-3,-1,1,3}，完全一致的温和作答 score 恰好 = ±1；
+     旧阈值 |score| <= 1 会把这种人误判为四维全模糊 → 无论怎么选都看到彩蛋页。 */
+  const moderateFirst = {};
+  const moderateSecond = {};
+  allBank.forEach(q => {
+    moderateFirst[q.id] = q.dir < 0 ? 1 : -1;    // 一致的温和作答，指向首字母极
+    moderateSecond[q.id] = q.dir < 0 ? -1 : 1;   // 一致的温和作答，指向次字母极
+  });
+  const rm = computeResult(moderateFirst, 'deep');
+  const rm2 = computeResult(moderateSecond, 'deep');
+  assert('温和一致作答（±1）→ 四维均非模糊', DIMS.every(d => rm.dims[d].amb === false),
+    DIMS.map(d => d + ':' + rm.dims[d].score).join(' '));
+  assert('温和一致作答 → 得分恰为 ±1（阈值必须是严格小于）',
+    DIMS.every(d => Math.abs(rm.dims[d].score) === 1), DIMS.map(d => rm.dims[d].score).join(','));
+  assert('温和一致作答 → 类型为 E/S/T/J 且不触发彩蛋', rm.letters === 'ESTJ' && rm.easterEgg === false, rm.letters);
+  assert('温和一致作答（反向）→ 类型为 I/N/F/P', rm2.letters === 'INFP' && rm2.easterEgg === false, rm2.letters);
+  assert('温和一致作答落点为 33%/67%', rm.dims.EI.pctB === 33 && rm2.dims.EI.pctB === 67,
+    rm.dims.EI.pctB + '/' + rm2.dims.EI.pctB);
+  assert('温和一致作答置信度低于极端作答',
+    rm.overallConfidence < computeResult((function () {
+      const a = {}; allBank.forEach(q => { a[q.id] = q.dir < 0 ? 3 : -3; }); return a;
+    })(), 'deep').overallConfidence,
+    rm.overallConfidence + '%');
+
   /* 9.4 无系统性偏向：随机作答者的两极比例应接近 50:50 */
   let seed = 20240927;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
