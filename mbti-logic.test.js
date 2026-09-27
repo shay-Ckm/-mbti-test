@@ -22,7 +22,8 @@ global.TYPE_PROFILE = require('./data/profile.js').TYPE_PROFILE;
 const api = require('./script.js');
 const {
   computeResult, buildQuestionSet, questionBank, bankVersion,
-  MODES, DIMS, TYPES, TYPE_EXTRA, TYPE_GROWTH, TYPE_PROFILE
+  MODES, DIMS, TYPES, TYPE_EXTRA, TYPE_GROWTH, TYPE_PROFILE,
+  computeRelation, TYPE_CODES
 } = api;
 
 let pass = 0, fail = 0;
@@ -188,6 +189,46 @@ console.log('MBTI 逻辑测试 v2\n');
   });
   assert('TYPE_PROFILE 字段齐全（关系 4 / 压力 3 / 画像 4 / 清单 6）', profileMiss.length === 0, profileMiss.join(','));
   assert('TYPE_PROFILE 与 TYPES 一一对应', keys.every(k => !!TYPE_PROFILE[k]));
+}
+
+// 10. 关系匹配引擎（16×16 = 256 组合）
+{
+  assert('类型代码表为 16 型', Array.isArray(TYPE_CODES) && TYPE_CODES.length === 16, String(TYPE_CODES && TYPE_CODES.length));
+
+  let err = 0, minScore = 100, maxScore = 0, golden = 0, zeroShared = 0, noCautions = 0;
+  TYPE_CODES.forEach(a => {
+    TYPE_CODES.forEach(b => {
+      const r = computeRelation(a, b);
+      const okStruct = r && Array.isArray(r.common) && Array.isArray(r.complement) &&
+        Array.isArray(r.cautions) && Array.isArray(r.tips) &&
+        r.common.length + r.complement.length === 4 && r.tips.length >= 1;
+      if (!okStruct) err++;
+      if (!r.cautions.length) noCautions++;
+      if (a === b && r.score !== 100) err++;
+      minScore = Math.min(minScore, r.score);
+      maxScore = Math.max(maxScore, r.score);
+      if (r.golden) golden++;
+      if (r.score === 0) zeroShared++;
+    });
+  });
+  assert('256 组合结构完整（共同点+互补=4，建议≥1）', err === 0, err + ' 组异常');
+  assert('所有组合都有"容易踩的坑"（含四维全异兜底）', noCautions === 0, noCautions + ' 组为空');
+  assert('相似度范围为 0%~100%', minScore === 0 && maxScore === 100, minScore + '%~' + maxScore + '%');
+  assert('四维全异组合共 16 组（每型 1 个完全相反型）', zeroShared === 16, String(zeroShared));
+
+  const same = computeRelation('INTJ', 'INTJ');
+  assert('同型相似度 100% 且互补 0', same.score === 100 && same.complementary === 0);
+  const opposite = computeRelation('INTJ', 'ESFP');
+  assert('完全相反型相似度 0% 且互补 4', opposite.score === 0 && opposite.complementary === 4);
+  assert('完全相反型有兜底提醒', opposite.cautions.length === 1 && opposite.common.length === 0);
+
+  assert('经典互补搭档可识别（INTJ×ENFP）', computeRelation('INTJ', 'ENFP').golden === true);
+  assert('经典互补搭档双向对称（ENFP×INTJ）', computeRelation('ENFP', 'INTJ').golden === true);
+  assert('非搭档组合不会误判（INTJ×ENTJ）', computeRelation('INTJ', 'ENTJ').golden === false);
+  /* 数据里 8 组搭档各写了两遍（A→B 与 B→A），因此有序组合为 8×2=16 */
+  assert('经典互补有序组合共 16 组', golden === 16, String(golden));
+
+  assert('共同点/差异点文字来自维度规则', /E\/I|S\/N|T\/F|J\/P/.test(computeRelation('INTJ', 'ESFP').complement.join('')));
 }
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败');

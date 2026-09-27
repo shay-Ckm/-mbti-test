@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shay-ckm.github.io/-mbti-test/sitemap.xml

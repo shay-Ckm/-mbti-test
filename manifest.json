@@ -1,0 +1,17 @@
+{
+  "name": "MBTI 人格测试 · 发现你的人格密码",
+  "short_name": "MBTI 测试",
+  "description": "快速测试 24 题、深度测试 60 题，含四维倾向、可靠度、职业规划与成长清单。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#241656",
+  "theme_color": "#3B2A86",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

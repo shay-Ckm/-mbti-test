@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关系匹配矩阵 · 16 型相处指南 | MBTI 人格实验室</title>
+  <meta name="description" content="MBTI 关系匹配矩阵：任选两个类型，查看相似度、互补维度、共同点、容易踩的坑与三条相处建议，覆盖 16×16 共 256 种组合。">
+  <meta name="theme-color" content="#3B2A86">
+  <link rel="canonical" href="https://shay-ckm.github.io/-mbti-test/relation.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MBTI 人格实验室">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="关系匹配矩阵 · 16 型相处指南">
+  <meta property="og:description" content="任选两个 MBTI 类型，查看相似度、互补维度、共同点、常见摩擦与三条相处建议。">
+  <meta property="og:url" content="https://shay-ckm.github.io/-mbti-test/relation.html">
+  <meta property="og:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="关系匹配矩阵 · 16 型相处指南">
+  <meta name="twitter:description" content="16×16 组合的相似度、互补点与相处建议。">
+  <meta name="twitter:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":"关系匹配矩阵 · 16 型相处指南","description":"任选两个 MBTI 类型，查看相似度、互补维度、共同点、常见摩擦与相处建议。","url":"https://shay-ckm.github.io/-mbti-test/relation.html","inLanguage":"zh-CN","isPartOf":{"@type":"WebSite","name":"MBTI 人格实验室","url":"https://shay-ckm.github.io/-mbti-test/"}}</script>
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-var.woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body id="page-relation">
+  <a class="skip-link" href="#main">跳到主内容</a>
+  <div class="noise" aria-hidden="true"></div>
+  <main class="result-wrap" id="main">
+    <header class="result-head">
+      <h1 class="type-zh">关系匹配矩阵</h1>
+      <p class="type-en">RELATION COMPATIBILITY</p>
+      <p class="type-quote">「选两个类型，看看你们怎么相处」</p>
+      <div class="meta-bar">
+        <span class="meta-chip">16 × 16 组合</span>
+        <span class="meta-chip">维度级规则</span>
+        <span class="meta-chip">可执行建议</span>
+      </div>
+    </header>
+
+    <section class="gc-card">
+      <h4>① 选择两个类型</h4>
+      <div class="rel-picker">
+        <button type="button" class="rel-slot active" id="relSlotA">
+          <span class="slot-label">A</span><b class="slot-type">未选择</b>
+        </button>
+        <span class="rel-vs" aria-hidden="true">×</span>
+        <button type="button" class="rel-slot" id="relSlotB">
+          <span class="slot-label">B</span><b class="slot-type">未选择</b>
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" id="relRandom">🎲 随机来一对</button>
+      </div>
+      <p class="gc-text rel-hint" id="relHint"></p>
+      <div class="type-nav" id="relPickGrid" role="group" aria-label="选择人格类型"></div>
+    </section>
+
+    <!-- 匹配结果（JS 渲染） -->
+    <div id="relResult"></div>
+
+    <section class="gc-card">
+      <h4>② 或者直接点矩阵（行 = A，列 = B）</h4>
+      <div class="rel-matrix-wrap" id="relMatrix"></div>
+      <p class="gc-text cl-tip">格子里的数字 = 四个维度中同向的个数（越多越相似）；点任意格子即可查看这一对的相处指南。</p>
+    </section>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="test.html">⚡ 先测出自己的类型</a>
+      <a class="btn btn-ghost" href="index.html">🏠 返回首页</a>
+      <a class="btn btn-ghost" href="result.html">📊 查看我的结果</a>
+    </div>
+
+    <p class="result-note">关系没有标准答案：相似让人舒服，差异让人成长 😉</p>
+  </main>
+
+  <script src="data/questions.js"></script>
+  <script src="data/profile.js"></script>
+  <script src="script.js" defer></script>
+</body>
+</html>

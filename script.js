@@ -212,22 +212,22 @@ var TYPES = {
    主题色对应 16P 四大气质群组：
    分析家(紫 #6C63FF) / 外交家(绿 #00B894) / 守护者(蓝 #2E86DE) / 探险家(橙 #F0932B)   */
 var TYPE_EXTRA = {
-  INTJ: { en: 'Strategist', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '计划是我的铠甲，孤独是我的燃料', superpower: '在别人看见混乱的地方，你一眼看见系统与终局。', growth: '别让完美主义拖住行动，也别把"不够理性"的人挡在门外。' },
-  INTP: { en: 'Logician', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '我的大脑是一台永不停机的推理机', superpower: '再复杂的难题到你手里，都会被拆成可推导的零件。', growth: '把"想清楚"和"做出来"连起来——行动力是你唯一的短板。' },
-  ENTJ: { en: 'Commander', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '效率即正义，行动即答案', superpower: '你能在十秒内把一团乱麻理成作战地图。', growth: '胜负之外还有人心的温度，慢一点有时反而更快。' },
-  ENTP: { en: 'Debater', color: '#6C63FF', soft: '#E7E4FF', group: '分析家', tagline: '规则？那只是待测试的假设', superpower: '一句话就能把沉闷的讨论盘活成头脑风暴。', growth: '把发散的好奇收束成一件愿意长期坚持的事。' },
-  INFJ: { en: 'Advocate', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '我听见了那些没说出口的话', superpower: '你能在别人开口之前，就感知到他们的需要。', growth: '共情别人之前，先记得照顾自己的电量。' },
-  INFP: { en: 'Mediator', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '温柔是我对抗世界的方式', superpower: '在最普通的日子里，你也能看见诗与微光。', growth: '把理想拆成今天能走的一小步，别让它只停在梦里。' },
-  ENFJ: { en: 'Protagonist', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '让每个人都发光，是我的天赋', superpower: '你能把散落的人聚成一股有方向的力量。', growth: '你不必为所有人的情绪负责——留点能量给自己。' },
-  ENFP: { en: 'Campaigner', color: '#00B894', soft: '#D6F5EC', group: '外交家', tagline: '世界那么大，快乐那么多，一样都别错过', superpower: '再冷清的场合，你三句话就能点亮气氛。', growth: '找到那件值得你十年热爱的事，让热情真正扎根。' },
-  ISTJ: { en: 'Logistician', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '说到做到，是我给自己的承诺', superpower: '你经手的每件事，都会变得井井有条。', growth: '允许生活出现一点"计划外"的惊喜，也挺好。' },
-  ISFJ: { en: 'Defender', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '我记住了你所有的小习惯', superpower: '你的细心，能悄悄暖到每个人的心坎里。', growth: '学会开口说出自己的需要，付出不该是单向的。' },
-  ESTJ: { en: 'Executive', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '秩序与担当，是我的生存美学', superpower: '混乱的场面到你手里，会自动排成队列。', growth: '试着放手让团队自己飞，你会收获更多。' },
-  ESFJ: { en: 'Consul', color: '#2E86DE', soft: '#DCEBFA', group: '守护者', tagline: '照顾好每个人，是我天生的使命', superpower: '你记得所有人的生日，也接得住所有人的情绪。', growth: '你的价值不需要靠讨好来证明，做自己就很好。' },
-  ISTP: { en: 'Virtuoso', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '我不多说，但我总能搞定', superpower: '无论机器还是难题，到你手上都能被拆明白。', growth: '用行动表达关心很棒，偶尔也试试把话说出口。' },
-  ISFP: { en: 'Adventurer', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '我用感官，收藏这个世界', superpower: '颜色、气味、旋律……你接收到的细节比谁都多。', growth: '别怕慢，你的节奏里藏着别人学不来的美感。' },
-  ESTP: { en: 'Entrepreneur', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '先做了再说，机会不等人', superpower: '现场突发状况？你天生就是救场高手。', growth: '让"三分钟热度"多停留一会儿，专注能成就传奇。' },
-  ESFP: { en: 'Entertainer', color: '#F0932B', soft: '#FDEBD9', group: '探险家', tagline: '生活就是一场永不散场的派对', superpower: '你的笑声，能治愈一整天的疲惫。', growth: '快乐和难过都是你的一部分，记得给情绪留个出口。' }
+  INTJ: { en: 'Strategist', color: '#6C63FF', ink: '#4B43C7', soft: '#E7E4FF', group: '分析家', tagline: '计划是我的铠甲，孤独是我的燃料', superpower: '在别人看见混乱的地方，你一眼看见系统与终局。', growth: '别让完美主义拖住行动，也别把"不够理性"的人挡在门外。' },
+  INTP: { en: 'Logician', color: '#6C63FF', ink: '#4B43C7', soft: '#E7E4FF', group: '分析家', tagline: '我的大脑是一台永不停机的推理机', superpower: '再复杂的难题到你手里，都会被拆成可推导的零件。', growth: '把"想清楚"和"做出来"连起来——行动力是你唯一的短板。' },
+  ENTJ: { en: 'Commander', color: '#6C63FF', ink: '#4B43C7', soft: '#E7E4FF', group: '分析家', tagline: '效率即正义，行动即答案', superpower: '你能在十秒内把一团乱麻理成作战地图。', growth: '胜负之外还有人心的温度，慢一点有时反而更快。' },
+  ENTP: { en: 'Debater', color: '#6C63FF', ink: '#4B43C7', soft: '#E7E4FF', group: '分析家', tagline: '规则？那只是待测试的假设', superpower: '一句话就能把沉闷的讨论盘活成头脑风暴。', growth: '把发散的好奇收束成一件愿意长期坚持的事。' },
+  INFJ: { en: 'Advocate', color: '#00B894', ink: '#04795F', soft: '#D6F5EC', group: '外交家', tagline: '我听见了那些没说出口的话', superpower: '你能在别人开口之前，就感知到他们的需要。', growth: '共情别人之前，先记得照顾自己的电量。' },
+  INFP: { en: 'Mediator', color: '#00B894', ink: '#04795F', soft: '#D6F5EC', group: '外交家', tagline: '温柔是我对抗世界的方式', superpower: '在最普通的日子里，你也能看见诗与微光。', growth: '把理想拆成今天能走的一小步，别让它只停在梦里。' },
+  ENFJ: { en: 'Protagonist', color: '#00B894', ink: '#04795F', soft: '#D6F5EC', group: '外交家', tagline: '让每个人都发光，是我的天赋', superpower: '你能把散落的人聚成一股有方向的力量。', growth: '你不必为所有人的情绪负责——留点能量给自己。' },
+  ENFP: { en: 'Campaigner', color: '#00B894', ink: '#04795F', soft: '#D6F5EC', group: '外交家', tagline: '世界那么大，快乐那么多，一样都别错过', superpower: '再冷清的场合，你三句话就能点亮气氛。', growth: '找到那件值得你十年热爱的事，让热情真正扎根。' },
+  ISTJ: { en: 'Logistician', color: '#2E86DE', ink: '#1B5FA8', soft: '#DCEBFA', group: '守护者', tagline: '说到做到，是我给自己的承诺', superpower: '你经手的每件事，都会变得井井有条。', growth: '允许生活出现一点"计划外"的惊喜，也挺好。' },
+  ISFJ: { en: 'Defender', color: '#2E86DE', ink: '#1B5FA8', soft: '#DCEBFA', group: '守护者', tagline: '我记住了你所有的小习惯', superpower: '你的细心，能悄悄暖到每个人的心坎里。', growth: '学会开口说出自己的需要，付出不该是单向的。' },
+  ESTJ: { en: 'Executive', color: '#2E86DE', ink: '#1B5FA8', soft: '#DCEBFA', group: '守护者', tagline: '秩序与担当，是我的生存美学', superpower: '混乱的场面到你手里，会自动排成队列。', growth: '试着放手让团队自己飞，你会收获更多。' },
+  ESFJ: { en: 'Consul', color: '#2E86DE', ink: '#1B5FA8', soft: '#DCEBFA', group: '守护者', tagline: '照顾好每个人，是我天生的使命', superpower: '你记得所有人的生日，也接得住所有人的情绪。', growth: '你的价值不需要靠讨好来证明，做自己就很好。' },
+  ISTP: { en: 'Virtuoso', color: '#F0932B', ink: '#A65D00', soft: '#FDEBD9', group: '探险家', tagline: '我不多说，但我总能搞定', superpower: '无论机器还是难题，到你手上都能被拆明白。', growth: '用行动表达关心很棒，偶尔也试试把话说出口。' },
+  ISFP: { en: 'Adventurer', color: '#F0932B', ink: '#A65D00', soft: '#FDEBD9', group: '探险家', tagline: '我用感官，收藏这个世界', superpower: '颜色、气味、旋律……你接收到的细节比谁都多。', growth: '别怕慢，你的节奏里藏着别人学不来的美感。' },
+  ESTP: { en: 'Entrepreneur', color: '#F0932B', ink: '#A65D00', soft: '#FDEBD9', group: '探险家', tagline: '先做了再说，机会不等人', superpower: '现场突发状况？你天生就是救场高手。', growth: '让"三分钟热度"多停留一会儿，专注能成就传奇。' },
+  ESFP: { en: 'Entertainer', color: '#F0932B', ink: '#A65D00', soft: '#FDEBD9', group: '探险家', tagline: '生活就是一场永不散场的派对', superpower: '你的笑声，能治愈一整天的疲惫。', growth: '快乐和难过都是你的一部分，记得给情绪留个出口。' }
 };
 
 /* ================= 16 型成长中心数据（解读 / 职业 / 人生） ================= */
@@ -888,6 +888,8 @@ function renderQuestion(i) {
     btn.type = 'button';
     btn.className = 'opt';
     btn.setAttribute('data-val', s.val);
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', cur === s.val ? 'true' : 'false');
     btn.innerHTML = '<span class="opt-key">' + (idx + 1) + '</span>' +
       s.label + '<span class="opt-tag">' + s.tag + '</span>';
     if (cur === s.val) btn.classList.add('selected');
@@ -912,7 +914,11 @@ function selectOption(val) {
   testState.answers[q.id] = val;
   setStore(STORAGE_KEYS.answers, testState.answers);
   setStore(STORAGE_KEYS.current, testState.index);
-  $$('.opt').forEach(function (b) { b.classList.toggle('selected', Number(b.getAttribute('data-val')) === val); });
+  $$('.opt').forEach(function (b) {
+    var on = Number(b.getAttribute('data-val')) === val;
+    b.classList.toggle('selected', on);
+    if (b.setAttribute) b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
   positionIndicator();
   var dot = $$('#jumpGrid .jump-dot')[testState.index];
   if (dot) dot.classList.add('done');
@@ -945,6 +951,13 @@ function updateProgress() {
   }).length;
   $('#progressFill').style.width = (done / total * 100) + '%';
   $('#qDone').textContent = '已完成 ' + done + ' / ' + total + ' 题';
+  /* 无障碍：把进度暴露给读屏软件 */
+  var track = $('#progressTrack');
+  if (track && track.setAttribute) {
+    track.setAttribute('aria-valuenow', String(done));
+    track.setAttribute('aria-valuemax', String(total));
+    track.setAttribute('aria-valuetext', '已完成 ' + done + ' / ' + total + ' 题');
+  }
   updateLivePreview();
 }
 
@@ -1199,6 +1212,7 @@ function renderResult(res) {
   var rm = $('#resultMain');
   if (rm) {
     rm.style.setProperty('--tcolor', extra.color || '#6C63FF');
+    rm.style.setProperty('--tcolor-ink', extra.ink || extra.color || '#4B43C7');
     rm.style.setProperty('--tcolor-soft', extra.soft || '#E7E4FF');
   }
 
@@ -1231,16 +1245,36 @@ function renderResult(res) {
   renderReportSections(res);
   renderProfileSections(res);
 
+  // 类型百科页入口（静态生成的 types/<code>.html）
+  var tpl = $('#typePageLink');
+  if (tpl) {
+    tpl.setAttribute('href', 'types/' + res.letters.toLowerCase() + '.html');
+    tpl.textContent = '📖 ' + res.letters + ' 完整档案';
+  }
+
+  /* 按钮只绑定一次，且始终作用于"最新一次渲染的结果"
+     （避免重复 init 时监听器叠加、一次点击触发多次） */
+  currentResult = res;
+  bindResultActions();
+}
+
+var currentResult = null;
+var resultActionsBound = false;
+
+function bindResultActions() {
+  if (resultActionsBound) return;
+  resultActionsBound = true;
   $('#retestBtn').addEventListener('click', function () {
     clearTestData();
     navigate('index.html');
   });
-  $('#shareBtn').addEventListener('click', function () { buildShareCard(res); });
-  $('#shareNativeBtn').addEventListener('click', function () { shareNative(res); });
-  $('#partnerBtn').addEventListener('click', function () { openPartner(res); });
-  $('#copyBtn').addEventListener('click', function () { copyShareText(res); });
+  $('#shareBtn').addEventListener('click', function () { if (currentResult) buildShareCard(currentResult); });
+  $('#shareNativeBtn').addEventListener('click', function () { if (currentResult) shareNative(currentResult); });
+  $('#partnerBtn').addEventListener('click', function () { if (currentResult) openPartner(currentResult); });
+  $('#copyBtn').addEventListener('click', function () { if (currentResult) copyShareText(currentResult); });
+  $('#reportImgBtn').addEventListener('click', function () { if (currentResult) buildReportImage(currentResult); });
+  $('#printBtn').addEventListener('click', function () { if (typeof window !== 'undefined') window.print(); });
 }
-
 /* ---------- 结果元信息条（档位 / 题量 / 题库版本 / 一致性） ---------- */
 function renderMetaBar(res) {
   var el = $('#metaBar');
@@ -1446,7 +1480,9 @@ function renderRelations(p) {
   function show(k) {
     text.textContent = rel[k] || '';
     $$('#relTabs .rel-tab').forEach(function (b) {
-      b.classList.toggle('active', b.getAttribute('data-rel') === k);
+      var on = b.getAttribute('data-rel') === k;
+      b.classList.toggle('active', on);
+      if (b.setAttribute) b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
   }
   keys.forEach(function (k) {
@@ -1454,6 +1490,8 @@ function renderRelations(p) {
     b.type = 'button';
     b.className = 'rel-tab';
     b.setAttribute('data-rel', k);
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', 'false');
     b.textContent = labels[k];
     b.addEventListener('click', function () { show(k); });
     tabs.appendChild(b);
@@ -1734,6 +1772,281 @@ function buildShareCard(res) {
   }
 }
 
+/* ---------- 通用：下载画布 ---------- */
+function downloadCanvas(cv, filename, okMsg) {
+  var url = cv.toDataURL('image/png');
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast(okMsg || '已保存 🎉');
+}
+
+/* ============================================================
+   完整报告长图（Canvas 两遍排版：先测量高度，再一次性绘制）
+   白底 + 顶部渐变头图，适合保存/打印分享
+   ============================================================ */
+function buildReportImage(res) {
+  try {
+    var t = res.type;
+    if (!t) { toast('先测出结果才能导出哦'); return; }
+    var extra = TYPE_EXTRA[res.letters] || {};
+    var g = TYPE_GROWTH[res.letters] || {};
+    var p = profileOf(res.letters) || {};
+    var conf = modeConf(res.mode);
+    var COLOR = extra.color || '#6C63FF';
+    var DARK = '#2D3436', SOFT = '#4A5361', MUTE = '#8A94A6';
+
+    var W = 1080, PAD = 72, INNER = W - PAD * 2, GAP = 26, HEAD = 400;
+    var FONT = '"PingFang SC","Microsoft YaHei",sans-serif';
+    var scratch = document.createElement('canvas').getContext('2d');
+
+    function measure(s, size, weight) {
+      scratch.font = (weight || 500) + ' ' + size + 'px ' + FONT;
+      var m = scratch.measureText ? scratch.measureText(s) : null;
+      return (m && m.width) ? m.width : String(s).length * size * 0.58; // 无 measureText 时估算
+    }
+    function wrap(s, size, maxW, weight) {
+      var out = [], line = '';
+      String(s == null ? '' : s).split('').forEach(function (ch) {
+        if (measure(line + ch, size, weight) > maxW && line) { out.push(line); line = ch; }
+        else line += ch;
+      });
+      if (line) out.push(line);
+      return out;
+    }
+
+    /* ---- 排板块：每块自带高度与绘制函数 ---- */
+    var blocks = [];
+    function push(h, draw) { blocks.push({ h: h, draw: draw }); }
+
+    function pushTitle(title) {
+      push(58, function (ctx, y) {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = COLOR;
+        ctx.font = '700 30px ' + FONT;
+        ctx.fillText(title, PAD, y + 32);
+        ctx.fillStyle = 'rgba(108,99,255,0.18)';
+        ctx.fillRect(PAD, y + 46, INNER, 2);
+      });
+    }
+    function pushText(text, opts) {
+      opts = opts || {};
+      var size = opts.size || 27;
+      var lh = size * 1.75;
+      var lines = wrap(text, size, INNER - (opts.indent || 0), 400);
+      push(lines.length * lh, function (ctx, y) {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = opts.mute ? MUTE : SOFT;
+        ctx.font = '400 ' + size + 'px ' + FONT;
+        lines.forEach(function (l, i) { ctx.fillText(l, PAD + (opts.indent || 0), y + lh * (i + 0.8)); });
+      });
+    }
+    function pushList(items) {
+      var size = 26, lh = size * 1.8, rows = [];
+      (items || []).forEach(function (s) {
+        wrap(s, size, INNER - 46, 500).forEach(function (l, i) { rows.push({ text: l, first: i === 0 }); });
+      });
+      push(rows.length * lh, function (ctx, y) {
+        ctx.textAlign = 'left';
+        rows.forEach(function (r, i) {
+          var yy = y + lh * (i + 0.8);
+          if (r.first) {
+            ctx.fillStyle = COLOR;
+            ctx.beginPath();
+            ctx.arc(PAD + 8, yy - 9, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = SOFT;
+          ctx.font = '400 ' + size + 'px ' + FONT;
+          ctx.fillText(r.text, PAD + 30, yy);
+        });
+      });
+    }
+    function pushTwoCol(leftTitle, leftItems, rightTitle, rightItems) {
+      var size = 25, lh = size * 1.8, colW = (INNER - 40) / 2, rows = [];
+      function pack(items) {
+        var out = [];
+        (items || []).forEach(function (s) {
+          wrap(s, size, colW - 26, 500).forEach(function (l, i) { out.push({ text: l, first: i === 0 }); });
+        });
+        return out;
+      }
+      var L = pack(leftItems), R = pack(rightItems);
+      var n = Math.max(L.length, R.length, 1);
+      push(44 + n * lh, function (ctx, y) {
+        ctx.textAlign = 'left';
+        ctx.font = '700 26px ' + FONT;
+        ctx.fillStyle = COLOR;
+        ctx.fillText(leftTitle, PAD, y + 30);
+        ctx.fillText(rightTitle, PAD + colW + 40, y + 30);
+        [[L, PAD], [R, PAD + colW + 40]].forEach(function (pair) {
+          pair[0].forEach(function (r, i) {
+            var yy = y + 44 + lh * (i + 0.8);
+            if (r.first) {
+              ctx.fillStyle = 'rgba(108,99,255,0.55)';
+              ctx.beginPath();
+              ctx.arc(pair[1] + 8, yy - 9, 4, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.fillStyle = SOFT;
+            ctx.font = '400 ' + size + 'px ' + FONT;
+            ctx.fillText(r.text, pair[1] + 26, yy);
+          });
+        });
+      });
+    }
+    function pushChips(items) {
+      var size = 25, padX = 22, h = 54, rows = [[]], x = 0;
+      (items || []).forEach(function (s) {
+        var w = measure(s, size, 600) + padX * 2;
+        if (x + w > INNER) { rows.push([]); x = 0; }
+        rows[rows.length - 1].push({ text: s, w: w });
+        x += w + 14;
+      });
+      push(rows.length * (h + 12), function (ctx, y) {
+        ctx.textAlign = 'center';
+        ctx.font = '600 ' + size + 'px ' + FONT;
+        rows.forEach(function (row, ri) {
+          var cx = PAD;
+          row.forEach(function (c) {
+            var yy = y + ri * (h + 12);
+            ctx.fillStyle = 'rgba(108,99,255,0.10)';
+            roundRect(ctx, cx, yy, c.w, h, 27);
+            ctx.fill();
+            ctx.fillStyle = COLOR;
+            ctx.fillText(c.text, cx + c.w / 2, yy + 36);
+            cx += c.w + 14;
+          });
+        });
+      });
+    }
+
+    /* ---- 内容 ---- */
+    pushTitle('特质总览');
+    DIMS.forEach(function (dim) {
+      var d = res.dims[dim];
+      push(74, function (ctx, y) {
+        ctx.textAlign = 'left';
+        ctx.font = '600 25px ' + FONT;
+        ctx.fillStyle = DARK;
+        ctx.fillText(DIM_FULL[dim][0] + ' ' + d.A, PAD, y + 26);
+        ctx.textAlign = 'right';
+        ctx.fillText(DIM_FULL[dim][1] + ' ' + d.B, PAD + INNER, y + 26);
+        var trackY = y + 42, trackH = 14;
+        ctx.fillStyle = 'rgba(108,99,255,0.14)';
+        roundRect(ctx, PAD, trackY, INNER, trackH, 7);
+        ctx.fill();
+        ctx.fillStyle = COLOR;
+        roundRect(ctx, PAD, trackY, Math.max(8, INNER * d.pctB / 100), trackH, 7);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.font = '700 22px ' + FONT;
+        ctx.fillStyle = MUTE;
+        ctx.fillText(d.label + ' · ' + (d.pctB >= 50 ? d.pctB : 100 - d.pctB) + '%' + (d.amb ? '（倾向模糊）' : ''), PAD + INNER / 2, y + 72);
+      });
+    });
+
+    pushTitle('结果可靠度');
+    DIMS.forEach(function (dim) {
+      var d = res.dims[dim];
+      push(52, function (ctx, y) {
+        ctx.textAlign = 'left';
+        ctx.font = '600 25px ' + FONT;
+        ctx.fillStyle = DARK;
+        ctx.fillText(DIM_LABELS[dim], PAD, y + 30);
+        var x0 = PAD + 110, w = INNER - 240;
+        ctx.fillStyle = 'rgba(108,99,255,0.14)';
+        roundRect(ctx, x0, y + 16, w, 12, 6);
+        ctx.fill();
+        ctx.fillStyle = d.confidence >= 70 ? '#00B894' : (d.confidence >= 45 ? COLOR : '#F5A623');
+        roundRect(ctx, x0, y + 16, Math.max(6, w * d.confidence / 100), 12, 6);
+        ctx.fill();
+        ctx.textAlign = 'right';
+        ctx.font = '700 24px ' + FONT;
+        ctx.fillStyle = SOFT;
+        ctx.fillText(d.confidence + '% · ' + d.label, PAD + INNER, y + 30);
+      });
+    });
+    pushText('整体置信度 ' + res.overallConfidence + '%' + (res.consistencyIssues ? '（检出 ' + res.consistencyIssues + ' 组作答不一致）' : '') +
+      ' · ' + conf.label + ' ' + res.answered + ' 题 · 题库 v' + res.bankVersion, { size: 24, mute: true });
+
+    pushTitle('关于你'); pushText(t.desc);
+    pushTitle('优势 · 注意点'); pushTwoCol('⚡ 优势', g.strengths, '⚠️ 注意', g.weaknesses);
+    pushTitle('内在驱动力'); pushText(g.drive);
+    pushTitle('隐藏超能力 · 进阶修炼'); pushTwoCol('🦸 超能力', [extra.superpower], '🧗 进阶', [extra.growth]);
+    pushTitle('职业规划'); pushText(g.workStyle);
+    pushText('推荐岗位', { size: 24, mute: true }); pushChips(g.roles);
+    pushText('职业建议', { size: 24, mute: true }); pushList(g.careerTips);
+    pushTitle('人生指导'); pushList(g.lifeTips);
+    pushText('人际相处：' + (g.relationTip || ''));
+    pushTitle('关系与社交');
+    [['💗 恋爱', p.relations && p.relations.love], ['🤝 友谊', p.relations && p.relations.friend],
+      ['🏠 家庭', p.relations && p.relations.family], ['💼 职场', p.relations && p.relations.work]]
+      .forEach(function (row) { if (row[1]) pushText(row[0] + '：' + row[1]); });
+    pushTitle('压力下的你');
+    pushText('🚨 压力信号：' + ((p.stress && p.stress.signal) || ''));
+    pushText('🌀 典型反应：' + ((p.stress && p.stress.react) || ''));
+    pushText('🌤️ 修复动作：' + ((p.stress && p.stress.recover) || ''));
+    pushTitle('更多画像');
+    pushText('💬 沟通风格：' + (p.comm || ''));
+    pushText('🧩 团队角色：' + (p.team || ''));
+    pushText('📚 学习风格：' + (p.learn || ''));
+    pushText('💰 金钱与决策：' + (p.money || ''));
+    pushTitle('成长清单'); pushList(p.checklist);
+    pushTitle('冷知识'); pushText(t.fact);
+
+    /* ---- 计算总高并绘制 ---- */
+    var bodyH = blocks.reduce(function (s, b) { return s + b.h + GAP; }, 0);
+    var H = HEAD + PAD + bodyH + 150;
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+    var bg = ctx.createLinearGradient(0, 0, W, HEAD);
+    bg.addColorStop(0, COLOR);
+    bg.addColorStop(1, '#00D2D3');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, HEAD);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = '600 30px ' + FONT;
+    ctx.fillText('✦ MBTI 人格实验室 · 完整报告 ✦', W / 2, 78);
+    ctx.font = '800 120px Inter, ' + FONT;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(res.letters, W / 2, 208);
+    ctx.font = '700 34px ' + FONT;
+    ctx.fillText(t.zh + ' · ' + (extra.en || '') + ' · ' + (extra.group || ''), W / 2, 268);
+    ctx.font = '400 26px ' + FONT;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillText('「' + (extra.tagline || '') + '」', W / 2, 316);
+    ctx.font = '500 24px ' + FONT;
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.fillText((t.tags || []).join(' · '), W / 2, 358);
+
+    var y = HEAD + PAD;
+    blocks.forEach(function (b) { b.draw(ctx, y); y += b.h + GAP; });
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = MUTE;
+    ctx.font = '400 24px ' + FONT;
+    ctx.fillText('MBTI 是偏好参考，不是科学判刑；人格是流动的，别让标签定义你', W / 2, H - 84);
+    ctx.fillStyle = 'rgba(108,99,255,0.7)';
+    ctx.font = '500 22px ' + FONT;
+    ctx.fillText('shay-ckm.github.io/-mbti-test · 24 题快速档 / 60 题深度档', W / 2, H - 44);
+
+    downloadCanvas(cv, '我的MBTI完整报告-' + res.letters + '.png', '完整报告长图已保存 🎉');
+  } catch (e) {
+    if (typeof console !== 'undefined' && console.error) console.error('导出完整报告长图失败:', e);
+    toast('导出失败，请换个浏览器试试');
+  }
+}
+
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -1784,6 +2097,8 @@ function gcBarRows(items, kind, levels) {
 }
 
 /* ---------- 最佳搭档弹窗 ---------- */
+var modalState = { lastFocus: null };
+
 function openPartner(res) {
   var t = res.type;
   if (!t) return;
@@ -1798,30 +2113,61 @@ function openPartner(res) {
     '恰好是 <b>' + p.zh + '</b> 最需要的另一块拼图。<br><br>' +
     p.blurb + '<br><br>TA 会点亮你忽略的那一面，你也会让 TA 看见世界的另一面。';
 
+  /* 无障碍：记住触发元素、打开后把焦点移入弹窗 */
+  modalState.lastFocus = document.activeElement;
   $('#partnerModal').classList.add('show');
   document.body.style.overflow = 'hidden';
+  var closeBtn = $('#partnerClose');
+  if (closeBtn && closeBtn.focus) closeBtn.focus();
 }
 
 function closePartner() {
-  $('#partnerModal').classList.remove('show');
+  var modal = $('#partnerModal');
+  if (!modal || !modal.classList.contains('show')) return;
+  modal.classList.remove('show');
   document.body.style.overflow = '';
+  /* 无障碍：把焦点还给打开弹窗的按钮 */
+  if (modalState.lastFocus && modalState.lastFocus.focus) modalState.lastFocus.focus();
+  modalState.lastFocus = null;
 }
 
+/* 无障碍：Tab 在弹窗内循环，不跑到背景内容里 */
+function trapModalTab(e) {
+  if (e.key !== 'Tab') return;
+  var modal = $('#partnerModal');
+  if (!modal || !modal.classList || !modal.classList.contains('show')) return;
+  var nodes = modal.querySelectorAll
+    ? Array.prototype.slice.call(modal.querySelectorAll('button, [href], input, select, textarea'))
+    : [];
+  nodes = nodes.filter(function (n) { return !n.disabled; });
+  if (!nodes.length) return;
+  var first = nodes[0], last = nodes[nodes.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
+var modalBound = false;
 function bindModalEvents() {
+  if (modalBound) return;
   var closeBtn = $('#partnerClose');
   var modal = $('#partnerModal');
   if (!closeBtn || !modal) return; // 弹窗仅存在于结果页
+  modalBound = true;
   closeBtn.addEventListener('click', closePartner);
   modal.addEventListener('click', function (e) {
     if (e.target === this) closePartner();
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closePartner();
+    else trapModalTab(e);
   });
 }
 
 /* ---------- 彩蛋页 ---------- */
+var easterBound = false;
 function bindEasterButtons() {
+  if (easterBound) return;
+  easterBound = true;
   $('#easterRetest').addEventListener('click', function () {
     clearTestData();
     navigate('test.html');
@@ -1833,16 +2179,265 @@ function bindEasterButtons() {
 }
 
 /* ============================================================
+   关系匹配矩阵（16×16）
+   ------------------------------------------------------------
+   不硬编码 256 组文案，而是按"维度级规则"组合：
+   - 同极 → 共同点 + 该极特有的小提醒
+   - 异极 → 互补点 + 具体相处方法（这正是摩擦发生的地方）
+   再叠加相似度（同极数/4）、互补维度数、经典互补搭档判定。
+   ============================================================ */
+var RELATION_RULES = {
+  EI: {
+    label: 'E/I 外向-内向',
+    same: {
+      E: '你们都在人群里充电：热闹是共同燃料。要留意别把日程排得太满，谁都不肯先喊停。',
+      I: '你们都靠独处回血：相处安静舒服。但两个人都不主动时，关系容易慢慢降温，需要有人定期发起。'
+    },
+    diff: '一个从人群充电、一个从独处回血。约定"电量规则"：外向方照常社交，但给内向方留出提前离场与独处的时间，而不是要求全程陪同。'
+  },
+  SN: {
+    label: 'S/N 实感-直觉',
+    same: {
+      S: '你们都关注具体事实：沟通高效、落地能力强。小心一起只看眼前，漏掉长期变化。',
+      N: '你们都爱聊可能性：想法碰撞很过瘾。容易一起飘在空中，需要有个人负责把它变成第一步。'
+    },
+    diff: '一个看细节、一个看可能性。先对齐"我们在解决哪个问题"：实感方先给事实与数据，直觉方先给方向与愿景，别互贴"你想太多""你太死板"。'
+  },
+  TF: {
+    label: 'T/F 思考-情感',
+    same: {
+      T: '你们都先讲逻辑：讨论问题干脆利落。要留意情绪需求常没被说出口——讲道理不等于被理解。',
+      F: '你们都先顾及感受：相处温柔体贴。也容易因为都不想伤害对方而回避真问题，甚至互相传染情绪。'
+    },
+    diff: '一个先讲逻辑、一个先讲感受。表达公式：逻辑方先认可情绪（"我理解你难受"）再谈对错；情感方直接说出需求（"我现在要安慰，不要方案"）。'
+  },
+  JP: {
+    label: 'J/P 判断-感知',
+    same: {
+      J: '你们都爱计划：确定性强、执行力好。小心两个人都固执于原方案，缺少临场调整的余地。',
+      P: '你们都随性：相处轻松自在。但截止日期、账单、行程这类必须有人管的事，容易被一起拖着走。'
+    },
+    diff: '一个要计划、一个要弹性。把安排分成"硬约束"（必须遵守）和"软安排"（随时可改），出发前说好可改动范围，减少"你太死板""你太随意"的摩擦。'
+  }
+};
+
+function computeRelation(a, b) {
+  var res = {
+    a: a, b: b, shared: [], differ: [],
+    sameCount: 0, score: 0, complementary: 0, golden: false,
+    common: [], complement: [], cautions: [], tips: []
+  };
+  DIMS.forEach(function (dim, i) {
+    var poleA = a[i], poleB = b[i];
+    if (poleA === poleB) {
+      res.shared.push({ dim: dim, pole: poleA });
+      res.common.push('【' + RELATION_RULES[dim].label + ' · 同向 ' + poleA + '】' + RELATION_RULES[dim].same[poleA]);
+      res.cautions.push(RELATION_RULES[dim].same[poleA]);
+    } else {
+      res.differ.push({ dim: dim, a: poleA, b: poleB });
+      res.complement.push('【' + RELATION_RULES[dim].label + ' · ' + poleA + ' × ' + poleB + '】' + RELATION_RULES[dim].diff);
+    }
+  });
+  res.sameCount = res.shared.length;
+  res.complementary = res.differ.length;
+  res.score = Math.round(res.sameCount / DIMS.length * 100);
+  /* 经典互补搭档：partner 字段在 TYPES 上（TYPE_EXTRA 只存展示类信息） */
+  var ta = TYPES[a] || {}, tb = TYPES[b] || {};
+  res.golden = (ta.partner === b) || (tb.partner === a);
+
+  /* 四维全异时没有任何"同向"提醒，补一条通用雷区，避免结果卡片空白
+     （common/complement 保持纯维度语义，由 UI 在为空时给兜底文案） */
+  if (!res.cautions.length) {
+    res.cautions.push('四个维度全部相反：你们几乎没有"默认共识"，摩擦通常来自节奏差异，而不是谁对谁错。');
+  }
+
+  /* 三条可执行建议：优先针对差异维度，再按相似度给一条总的 */
+  res.differ.slice(0, 2).forEach(function (d) {
+    res.tips.push('先处理 ' + d.dim + ' 这个差异：' + RELATION_RULES[d.dim].diff.split('。')[1] + '。');
+  });
+  if (res.sameCount >= 3) {
+    res.tips.push('你们很像（相似度 ' + res.score + '%）：默契是优势，但要留意形成"回音室"——定期引入外部视角或第三方意见。');
+  } else if (res.sameCount <= 1) {
+    res.tips.push('你们差异较大（相似度 ' + res.score + '%）：互补潜力高、摩擦也会多，把"节奏协商"摆到明面上，比忍着更省事。');
+  } else {
+    res.tips.push('你们在"像"与"不像"之间比较平衡：把差异当分工用（谁擅长什么就负责什么），比要求对方改变更有效。');
+  }
+  return res;
+}
+
+var relationState = { a: null, b: null, active: 'a' };
+
+function initRelationPage() {
+  var root = $('#page-relation');
+  if (!root) return;
+
+  var grid = $('#relPickGrid');
+  if (grid) {
+    grid.innerHTML = '';
+    DIMS_ORDER_TYPES.forEach(function (code) {
+      var t = TYPES[code], e = TYPE_EXTRA[code] || {};
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'type-nav-item';
+      b.setAttribute('data-code', code);
+      b.setAttribute('aria-label', code + ' ' + t.zh + ' 人格类型');
+      b.setAttribute('aria-pressed', 'false');
+      b.style.setProperty('--tcolor', e.color || '#6C63FF');
+      b.style.setProperty('--tcolor-ink', e.ink || e.color || '#4B43C7');
+      b.innerHTML = '<b>' + code + '</b><span>' + t.zh + '</span>';
+      b.addEventListener('click', function () { pickType(code); });
+      grid.appendChild(b);
+    });
+  }
+
+  ['#relSlotA', '#relSlotB'].forEach(function (sel, idx) {
+    var el = $(sel);
+    if (el) el.addEventListener('click', function () {
+      relationState.active = idx === 0 ? 'a' : 'b';
+      updateRelationSlots();
+    });
+  });
+
+  var rnd = $('#relRandom');
+  if (rnd) rnd.addEventListener('click', function () {
+    var x = DIMS_ORDER_TYPES[Math.floor(Math.random() * 16)];
+    var y = DIMS_ORDER_TYPES[Math.floor(Math.random() * 16)];
+    while (y === x) y = DIMS_ORDER_TYPES[Math.floor(Math.random() * 16)];
+    relationState.a = x; relationState.b = y;
+    updateRelationSlots();
+    renderRelationResult();
+  });
+
+  buildRelationMatrix();
+  updateRelationSlots();
+}
+
+function pickType(code) {
+  relationState[relationState.active] = code;
+  if (relationState.active === 'a' && !relationState.b) relationState.active = 'b';
+  else if (relationState.active === 'b' && !relationState.a) relationState.active = 'a';
+  updateRelationSlots();
+  if (relationState.a && relationState.b) renderRelationResult();
+}
+
+function updateRelationSlots() {
+  var a = relationState.a, b = relationState.b;
+  var slotA = $('#relSlotA'), slotB = $('#relSlotB');
+  if (slotA) {
+    slotA.classList.toggle('active', relationState.active === 'a');
+    slotA.innerHTML = '<span class="slot-label">A</span><b class="slot-type">' + (a ? a + ' · ' + TYPES[a].zh : '未选择') + '</b>';
+  }
+  if (slotB) {
+    slotB.classList.toggle('active', relationState.active === 'b');
+    slotB.innerHTML = '<span class="slot-label">B</span><b class="slot-type">' + (b ? b + ' · ' + TYPES[b].zh : '未选择') + '</b>';
+  }
+  var hint = $('#relHint');
+  if (hint) {
+    hint.textContent = (a && b) ? '' :
+      '正在选择 ' + (relationState.active === 'a' ? 'A' : 'B') + ' 类型：点下面的类型，或点矩阵里的格子';
+  }
+  $$('#relPickGrid .type-nav-item').forEach(function (el) {
+    var code = el.getAttribute('data-code');
+    var chosen = (code === a || code === b);
+    el.classList.toggle('active', chosen);
+    if (el.setAttribute) el.setAttribute('aria-pressed', chosen ? 'true' : 'false');
+  });
+}
+
+function renderRelationResult() {
+  var wrap = $('#relResult');
+  if (!wrap || !relationState.a || !relationState.b) return;
+  var res = computeRelation(relationState.a, relationState.b);
+  var ta = TYPES[res.a], tb = TYPES[res.b];
+  var ea = TYPE_EXTRA[res.a] || {}, eb = TYPE_EXTRA[res.b] || {};
+  var list = items => '<ul class="gc-list">' + items.map(s =>
+    '<li><span class="gc-ico">✦</span><span class="gc-li-text">' + s + '</span></li>').join('') + '</ul>';
+
+  wrap.innerHTML =
+    '<div class="gc-card">' +
+      '<div class="rel-duo-head">' +
+        '<a class="rel-side" href="types/' + res.a.toLowerCase() + '.html" style="--tcolor:' + (ea.color || '#6C63FF') + ';--tcolor-ink:' + (ea.ink || ea.color || '#4B43C7') + '">' +
+          '<b>' + res.a + '</b><span>' + ta.zh + '</span></a>' +
+        '<span class="rel-vs">×</span>' +
+        '<a class="rel-side" href="types/' + res.b.toLowerCase() + '.html" style="--tcolor:' + (eb.color || '#6C63FF') + ';--tcolor-ink:' + (eb.ink || eb.color || '#4B43C7') + '">' +
+          '<b>' + res.b + '</b><span>' + tb.zh + '</span></a>' +
+      '</div>' +
+      '<div class="rel-stats">' +
+        '<div class="rel-stat"><span>相似度</span><b>' + res.score + '%</b>' +
+          '<div class="rel-bar"><i style="width:' + res.score + '%"></i></div></div>' +
+        '<div class="rel-stat"><span>互补维度</span><b>' + res.complementary + ' / 4</b></div>' +
+        (res.golden ? '<div class="rel-stat golden"><span>经典互补搭档</span><b>💞</b></div>' : '') +
+      '</div>' +
+      (res.golden ? '<p class="gc-text">按常见配对观点，你们属于互补型组合：一个补上对方忽略的一面。</p>' : '') +
+    '</div>' +
+    '<div class="gc-card"><h4>🤝 共同点</h4>' +
+      (res.common.length ? list(res.common) : '<p class="gc-text">四个维度全部相反——你们几乎没有"默认共识"，默契需要刻意建立。</p>') +
+    '</div>' +
+    '<div class="gc-card"><h4>🔀 差异与互补</h4>' +
+      (res.complement.length ? list(res.complement) : '<p class="gc-text">四个维度完全一致，沟通成本很低，但要注意别互相强化盲区。</p>') +
+    '</div>' +
+    '<div class="gc-card"><h4>⚠️ 容易踩的坑</h4>' + list(res.cautions) + '</div>' +
+    '<div class="gc-card"><h4>✅ 三条相处建议</h4>' + list(res.tips) + '</div>';
+}
+
+function buildRelationMatrix() {
+  var box = $('#relMatrix');
+  if (!box) return;
+  var html = '<table class="rel-table"><thead><tr><th class="corner">A \\ B</th>';
+  DIMS_ORDER_TYPES.forEach(function (c) { html += '<th>' + c + '</th>'; });
+  html += '</tr></thead><tbody>';
+  DIMS_ORDER_TYPES.forEach(function (ra) {
+    html += '<tr><th class="row-head">' + ra + '</th>';
+    DIMS_ORDER_TYPES.forEach(function (cb) {
+      var same = 0;
+      for (var i = 0; i < 4; i++) { if (ra[i] === cb[i]) same++; }
+      html += '<td><button type="button" class="rel-cell s' + same + '" data-a="' + ra + '" data-b="' + cb + '" ' +
+        'aria-label="' + ra + ' × ' + cb + '：四个维度中 ' + same + ' 个同向，查看这一对的相处指南" ' +
+        'title="' + ra + ' × ' + cb + '：相似 ' + same + '/4">' + same + '</button></td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  box.innerHTML = html;
+  $$('#relMatrix .rel-cell').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      relationState.a = btn.getAttribute('data-a');
+      relationState.b = btn.getAttribute('data-b');
+      relationState.active = 'a';
+      updateRelationSlots();
+      renderRelationResult();
+      var out = $('#relResult');
+      if (out && out.scrollIntoView) out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+/* 16 型固定展示顺序（与类型页生成器保持一致） */
+var DIMS_ORDER_TYPES = ['INTJ', 'INTP', 'ENTJ', 'ENTP', 'INFJ', 'INFP', 'ENFJ', 'ENFP',
+  'ISTJ', 'ISFJ', 'ESTJ', 'ESFJ', 'ISTP', 'ISFP', 'ESTP', 'ESFP'];
+
+/* 注册 Service Worker（离线可用）
+   仅在 http(s) 下生效：file:// 直接双击打开时静默跳过，不影响任何功能 */
+function initServiceWorker() {
+  if (typeof navigator === 'undefined' || !navigator.serviceWorker) return;
+  if (typeof location === 'undefined' || !location.protocol) return;
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+  navigator.serviceWorker.register('sw.js').catch(function () { /* 静默失败 */ });
+}
+
+/* ============================================================
    页面分发
    ============================================================ */
 function init() {
   if (typeof document === 'undefined') return;
   initTransitions();
   initCursorGlow();
+  initServiceWorker();
   var id = document.body && document.body.id;
   if (id === 'page-home') initHome();
   else if (id === 'page-test') initTest();
   else if (id === 'page-result') initResult();
+  else if (id === 'page-relation') initRelationPage();
   bindModalEvents();
 }
 
@@ -1869,6 +2464,9 @@ if (typeof module !== 'undefined' && module.exports) {
     buildQuestionSet: buildQuestionSet,
     computeResult: computeResult,
     answeredCount: answeredCount,
+    computeRelation: computeRelation,
+    RELATION_RULES: RELATION_RULES,
+    TYPE_CODES: DIMS_ORDER_TYPES,
     /* 页面入口（供 DOM 冒烟测试） */
     init: init
   };

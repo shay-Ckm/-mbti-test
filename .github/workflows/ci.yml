@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: 逻辑测试 + DOM 冒烟测试
+    name: 静态契约 + 逻辑 + DOM 冒烟
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
@@ -19,24 +19,31 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 静态资源完整性检查
+      - name: 关键资源存在性检查（完整 26 项清单由静态契约测试覆盖）
         run: |
           set -e
-          for f in index.html test.html result.html style.css script.js \
-                   data/questions.js data/profile.js README.md 开发文档.md \
-                   mbti-static.test.js mbti-logic.test.js mbti-smoke.test.js; do
+          for f in index.html test.html result.html relation.html 404.html style.css script.js sw.js \
+                   data/questions.js data/profile.js \
+                   assets/og-image.png assets/icon-192.png assets/icon-512.png assets/fonts/inter-var.woff2 \
+                   favicon.svg manifest.json robots.txt sitemap.xml LICENSE; do
             test -f "$f" || { echo "缺少文件: $f"; exit 1; }
           done
-          echo "静态资源完整"
+          echo "关键资源完整"
 
-      - name: 静态契约测试（HTML ↔ JS ↔ CSS ↔ 数据）
+      - name: 静态契约测试（HTML ↔ JS ↔ CSS ↔ 数据 ↔ 传播资产 ↔ PWA）
         run: node mbti-static.test.js
 
-      - name: 逻辑测试（题库结构 / 双档位 / 计分 / 置信度 / 一致性 / 数据完整性）
+      - name: 逻辑测试（题库结构 / 双档位 / 计分 / 置信度 / 一致性 / 关系引擎 / 数据完整性）
         run: node mbti-logic.test.js
 
       - name: DOM 冒烟测试（三页初始化与关键交互）
         run: node mbti-smoke.test.js
+
+      - name: Service Worker 行为测试（离线策略）
+        run: node mbti-sw.test.js
+
+      - name: npm test 一体化校验（与本地一致）
+        run: npm test
 
       - name: HTML 结构基本检查（页面根元素与数据脚本引入）
         run: |
@@ -44,6 +51,8 @@ jobs:
           for f in index.html test.html result.html; do
             grep -q 'data/questions.js' "$f" || { echo "$f 未引入题库数据"; exit 1; }
             grep -q 'data/profile.js' "$f" || { echo "$f 未引入画像数据"; exit 1; }
+            grep -q 'rel="icon"' "$f" || { echo "$f 缺少 favicon"; exit 1; }
+            grep -q 'property="og:image"' "$f" || { echo "$f 缺少 og:image"; exit 1; }
           done
           grep -q 'id="page-home"' index.html
           grep -q 'id="page-test"' test.html

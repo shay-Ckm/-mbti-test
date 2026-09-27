@@ -6,14 +6,31 @@
   <title>你的人格密码 · MBTI 人格测试</title>
   <meta name="description" content="MBTI 人格测试结果：类型、四维倾向与可靠度、优势与注意点、职业规划、关系社交、压力反应与成长清单。">
   <meta name="theme-color" content="#3B2A86">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="canonical" href="https://shay-ckm.github.io/-mbti-test/result.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="MBTI 人格实验室">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="你的人格密码 · MBTI 人格测试结果">
+  <meta property="og:description" content="类型徽章、四维倾向与可靠度、优势与注意点、职业规划、关系社交、压力反应、成长清单与复测对比。">
+  <meta property="og:url" content="https://shay-ckm.github.io/-mbti-test/result.html">
+  <meta property="og:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="你的人格密码 · MBTI 人格测试结果">
+  <meta name="twitter:description" content="四维倾向、结果可靠度、职业规划与成长清单。">
+  <meta name="twitter:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-var.woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body id="page-result">
+  <a class="skip-link" href="#main">跳到主内容</a>
   <div class="noise" aria-hidden="true"></div>
-  <main class="result-wrap">
+  <main class="result-wrap" id="main">
 
     <!-- ===== 正常结果 ===== -->
     <section id="resultMain">
@@ -48,8 +65,8 @@
       <!-- 关系与社交 -->
       <section class="gc-card rise" id="relCard">
         <h4>💞 关系与社交</h4>
-        <div class="rel-tabs" id="relTabs"></div>
-        <p class="gc-text rel-text" id="relText"></p>
+        <div class="rel-tabs" id="relTabs" role="tablist" aria-label="关系场景"></div>
+        <p class="gc-text rel-text" id="relText" role="tabpanel" aria-live="polite"></p>
       </section>
 
       <!-- 压力下的你 -->
@@ -92,6 +109,10 @@
         <button type="button" class="btn btn-primary" id="shareBtn">📸 保存结果图片</button>
         <button type="button" class="btn btn-ghost" id="shareNativeBtn">📤 分享给朋友</button>
         <button type="button" class="btn btn-ghost" id="partnerBtn">💞 查看最佳搭档</button>
+        <a class="btn btn-ghost" id="typePageLink" href="types/intj.html">📖 完整类型档案</a>
+        <a class="btn btn-ghost" href="relation.html">💞 关系匹配</a>
+        <button type="button" class="btn btn-ghost" id="reportImgBtn">📄 完整报告长图</button>
+        <button type="button" class="btn btn-ghost" id="printBtn">🖨️ 打印 / 存为 PDF</button>
       </div>
 
       <div class="share-cta rise">
@@ -119,7 +140,7 @@
   </main>
 
   <!-- 最佳搭档弹窗 -->
-  <div class="modal-mask" id="partnerModal">
+  <div class="modal-mask" id="partnerModal" role="dialog" aria-modal="true" aria-labelledby="partnerZh" aria-describedby="partnerText">
     <div class="modal-card">
       <button type="button" class="m-close" id="partnerClose" aria-label="关闭">✕</button>
       <div class="m-emoji" id="partnerEmoji">💞</div>
@@ -132,6 +153,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="data/questions.js"></script>
   <script src="data/profile.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>

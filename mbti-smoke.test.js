@@ -40,13 +40,16 @@ function makeEl(tag) {
     querySelector() { return makeEl('stub'); },
     querySelectorAll() { return []; },
     getBoundingClientRect() { return { left: 10, top: 10, width: 120, height: 60 }; },
-    setAttribute() {},
-    getAttribute() { return null; },
+    attrs: {},
+    setAttribute(k, v) { this.attrs[k] = String(v); },
+    getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
+    focus() { document.activeElement = this; },
     select() {},
     offsetWidth: 120,
     width: 0,
     height: 0,
     getContext() { return ctxStub; },
+    toDataURL() { return 'data:image/png;base64,iVBORw0KGgo='; },
     textContent: '',
     innerHTML: '',
     value: ''
@@ -68,13 +71,16 @@ const elements = {};
   '#page-home', '#typewriterText', '#homeCount', '#startBtn', '#startMeta', '#resumeHint', '#modeCards',
   /* 答题页 */
   '#page-test', '#modeBadge', '#qTotal', '#qCurrent', '#qDone', '#progressFill', '#qNum', '#qText', '#options',
-  '#prevBtn', '#nextBtn', '#resetLink', '#radar', '#milestone', '#jumpGrid',
+  '#prevBtn', '#nextBtn', '#resetLink', '#radar', '#milestone', '#jumpGrid', '#progressTrack',
   '#livePanel', '#liveBars', '#liveBubble', '#liveLetters', '#liveChips',
   /* 结果页 */
   '#page-result', '#resultMain', '#typeEmblem', '#typeZh', '#typeEn', '#typeQuote', '#tags', '#metaBar',
   '#traitPanel', '#confPanel', '#descText', '#reportSections', '#relCard', '#relTabs', '#relText',
   '#stressCard', '#stressGrid', '#moreCard', '#moreGrid', '#checklistCard', '#checklist', '#clProgress',
   '#historyCard', '#history', '#factText', '#retestBtn', '#shareBtn', '#shareNativeBtn', '#partnerBtn', '#copyBtn',
+  '#typePageLink', '#reportImgBtn', '#printBtn',
+  /* 关系匹配页 */
+  '#page-relation', '#relSlotA', '#relSlotB', '#relPickGrid', '#relRandom', '#relHint', '#relResult', '#relMatrix',
   '#easterCard', '#easterRetest', '#easterHome', '#partnerModal', '#partnerClose', '#partnerEmoji',
   '#partnerType', '#partnerZh', '#partnerText',
   /* 公共 */
@@ -97,7 +103,8 @@ global.window = {
   devicePixelRatio: 1,
   innerWidth: 1200,
   innerHeight: 800,
-  matchMedia: () => ({ matches: false })
+  matchMedia: () => ({ matches: false }),
+  print() { global.__printed = true; }
 };
 global.requestAnimationFrame = fn => setTimeout(() => fn(Date.now()), 0);
 global.location = { href: '', origin: 'https://example.test', pathname: '/index.html' };
@@ -186,6 +193,61 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
     check('成长清单 6 条', elements['#checklist'].children.length === 6, String(elements['#checklist'].children.length));
     check('成长进度已渲染', /\d+ \/ 6/.test(elements['#clProgress'].textContent), elements['#clProgress'].textContent);
     check('历史区有内容', elements['#history'].innerHTML.length > 20);
+    check('类型档案入口指向对应类型页',
+      elements['#typePageLink'].attrs && elements['#typePageLink'].attrs.href === 'types/' + expected.letters.toLowerCase() + '.html',
+      JSON.stringify(elements['#typePageLink'].attrs || {}) + ' vs types/' + expected.letters.toLowerCase() + '.html');
+
+    /* ---- 关系匹配页 ---- */
+    document.body.id = 'page-relation';
+    api.init();
+    check('关系页初始化无异常', true);
+    check('类型选择网格 16 个', elements['#relPickGrid'].children.length === 16, String(elements['#relPickGrid'].children.length));
+    check('矩阵渲染 256 个格子',
+      (elements['#relMatrix'].innerHTML.match(/rel-cell/g) || []).length === 256,
+      String((elements['#relMatrix'].innerHTML.match(/rel-cell/g) || []).length));
+    fire(elements['#relPickGrid'].children[0], 'click');
+    check('点类型可填入 A 槽', /INTJ/.test(elements['#relSlotA'].innerHTML), elements['#relSlotA'].innerHTML);
+    fire(elements['#relPickGrid'].children[5], 'click');
+    check('两个类型选齐后渲染匹配结果',
+      /相似度/.test(elements['#relResult'].innerHTML) &&
+      /INTJ/.test(elements['#relResult'].innerHTML) && /INFP/.test(elements['#relResult'].innerHTML));
+    check('匹配结果含相处建议与雷区',
+      /相处建议/.test(elements['#relResult'].innerHTML) && /踩的坑/.test(elements['#relResult'].innerHTML));
+
+    /* ---- 无障碍：弹窗焦点管理 + 进度条 ARIA ---- */
+    document.body.id = 'page-result';
+    api.init();
+    elements['#partnerBtn'].focus();
+    fire(elements['#partnerBtn'], 'click');
+    check('打开弹窗后焦点移入关闭按钮', document.activeElement === elements['#partnerClose']);
+    const keydowns = docListeners['keydown'] || [];
+    keydowns.forEach(fn => fn({ key: 'Escape' }));
+    check('Escape 关闭弹窗后焦点回到触发按钮', document.activeElement === elements['#partnerBtn']);
+
+    document.body.id = 'page-test';
+    api.init();
+    fire(elements['#options'].children[0], 'click');
+    const track = elements['#progressTrack'].attrs;
+    check('进度条写入 aria-valuenow / aria-valuemax',
+      Number(track['aria-valuenow']) >= 1 && Number(track['aria-valuenow']) <= Number(track['aria-valuemax']) &&
+      /已完成/.test(track['aria-valuetext'] || ''),
+      JSON.stringify(track));
+    const radioBtns = elements['#options'].children.filter(el => el.attrs && el.attrs['role'] === 'radio');
+    check('选项按钮带 role=radio 与 aria-checked',
+      radioBtns.length >= 4 && radioBtns.some(b => b.attrs['aria-checked'] === 'true'),
+      'radio=' + radioBtns.length);
+    /* ---- 报告导出（长图 / 打印） ---- */
+    document.body.id = 'page-result';
+    api.init();
+    const beforeKids = document.body.children.length;
+    fire(elements['#reportImgBtn'], 'click');
+    const anchors = document.body.children.slice(beforeKids)
+      .filter(el => /完整报告/.test(el.download || ''));
+    check('完整报告长图导出生成下载链接', anchors.length >= 1,
+      JSON.stringify(document.body.children.slice(beforeKids).map(el => el.download || '(无 download)')));
+    global.__printed = false;
+    fire(elements['#printBtn'], 'click');
+    check('打印/存为 PDF 按钮调用 window.print', global.__printed === true);
 
     /* ---- 等待异步动画回调 ---- */
     await new Promise(r => setTimeout(r, 120));

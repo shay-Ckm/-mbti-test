@@ -6,14 +6,31 @@
   <title>发现你的人格密码 · MBTI 人格测试</title>
   <meta name="description" content="MBTI 人格测试：快速测试 24 题约 5 分钟，深度测试 60 题精度更高。无需注册，含四维倾向、职业规划、关系社交与人生指导。">
   <meta name="theme-color" content="#3B2A86">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="canonical" href="https://shay-ckm.github.io/-mbti-test/index.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MBTI 人格实验室">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="发现你的人格密码 · MBTI 人格测试">
+  <meta property="og:description" content="快速测试 24 题约 5 分钟，深度测试 60 题精度更高：四维倾向、结果可靠度、职业规划、关系社交与成长清单。">
+  <meta property="og:url" content="https://shay-ckm.github.io/-mbti-test/index.html">
+  <meta property="og:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="发现你的人格密码 · MBTI 人格测试">
+  <meta name="twitter:description" content="快速 24 题 / 深度 60 题，含四维倾向与完整测评报告。">
+  <meta name="twitter:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-var.woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body id="page-home">
+  <a class="skip-link" href="#main">跳到主内容</a>
   <div class="noise" aria-hidden="true"></div>
-  <main class="home-wrap">
+  <main class="home-wrap" id="main">
     <div class="blob b1"></div>
     <div class="blob b2"></div>
     <div class="blob b3"></div>
@@ -32,6 +49,8 @@
       <div class="home-chip"><span class="hc-letters">T/F</span><small>思考 ⇄ 情感</small></div>
       <div class="home-chip"><span class="hc-letters">J/P</span><small>判断 ⇄ 感知</small></div>
     </div>
+
+    <p class="home-note"><a href="relation.html">💞 或者先看看 16 型关系匹配矩阵 →</a></p>
 
     <!-- 档位选择 -->
     <div class="mode-cards" id="modeCards">
@@ -59,6 +78,6 @@
 
   <script src="data/questions.js"></script>
   <script src="data/profile.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>

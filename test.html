@@ -5,14 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>答题中 · MBTI 人格测试</title>
   <meta name="theme-color" content="#3B2A86">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+  <meta name="description" content="MBTI 测试答题：快速档 24 题、深度档 60 题，实时雷达图与画像预览，支持键盘快捷键与断点续答。">
+  <link rel="canonical" href="https://shay-ckm.github.io/-mbti-test/test.html">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MBTI 人格实验室">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="答题中 · MBTI 人格测试">
+  <meta property="og:description" content="正在作答 MBTI 人格测试：24 题快速档或 60 题深度档。">
+  <meta property="og:url" content="https://shay-ckm.github.io/-mbti-test/test.html">
+  <meta property="og:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-var.woff2" crossorigin>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body id="page-test">
+  <a class="skip-link" href="#main">跳到主内容</a>
   <div class="noise" aria-hidden="true"></div>
-  <main class="test-wrap">
+  <main class="test-wrap" id="main">
     <div class="blob tb1" aria-hidden="true"></div>
     <div class="blob tb2" aria-hidden="true"></div>
 
@@ -26,7 +40,7 @@
       <a href="#" id="resetLink">↺ 重新开始</a>
     </div>
 
-    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-track" id="progressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="60" aria-valuenow="0" aria-label="答题进度"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-meta">
       <span>第 <b id="qCurrent">1</b> / <b id="qTotal">60</b> 题</span>
       <span>已完成 <b id="qDone">0</b> 题</span>
@@ -45,8 +59,8 @@
       <!-- 题目卡片 -->
       <section class="q-card">
         <span class="q-num" id="qNum">第 1 题</span>
-        <p class="q-text" id="qText"></p>
-        <div class="options" id="options"></div>
+        <p class="q-text" id="qText" aria-live="polite"></p>
+        <div class="options" id="options" role="radiogroup" aria-label="请选择你的同意程度"></div>
 
         <div class="test-nav">
           <button type="button" class="btn btn-ghost" id="prevBtn">← 上一题</button>
@@ -62,7 +76,7 @@
     <section class="live-panel" id="livePanel">
       <div class="live-head">
         <h3>✦ 实时画像预览 ✦</h3>
-        <span class="live-bubble" id="liveBubble">嘘——没有标准答案，凭第一直觉选 ✨</span>
+        <span class="live-bubble" id="liveBubble" aria-live="polite">嘘——没有标准答案，凭第一直觉选 ✨</span>
       </div>
       <div class="live-bars" id="liveBars"></div>
       <div class="live-foot">
@@ -84,6 +98,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="data/questions.js"></script>
   <script src="data/profile.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>
