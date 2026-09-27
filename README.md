@@ -140,12 +140,14 @@ npm run types                # 重新生成 16 型百科页 + 同步 sitemap.xml
 ```bash
 npm run push:check           # 只做本地校验 + 构建 tree，不写远端（推荐先跑）
 npm run push                 # 校验通过后创建 commit 并更新远端 main
+npm run verify               # 部署后验收：tree/文件字节一致性 + CI 状态 + Pages 构建 + 线上内容标记
 ```
 
-工具的安全设计：① 逐文件校验工作区字节与已提交内容一致；② 生成的 tree SHA 必须与本地 HEAD 的 tree 完全一致，否则中止——
-**内容不对就绝不写入远端**。凭据优先读 `GH_TOKEN` 环境变量，否则从 git 凭据管理器获取（不会打印）。
+工具的安全设计：① 逐文件校验工作区字节与已提交内容一致；② 每个文件先经 Blobs API 上传并**逐个比对 blob SHA**，
+再生成 tree，且 **tree SHA 必须与本地 HEAD 的 tree 完全一致**，否则中止——**内容不对就绝不写入远端**。
+凭据优先读 `GH_TOKEN` 环境变量，否则从 git 凭据管理器获取（不会打印）。
 
-推送成功后：GitHub Actions 自动跑 CI，Pages 自动重新构建（约 1-3 分钟）。
+推送成功后：GitHub Actions 自动跑 CI，Pages 自动重新构建（约 1-2 分钟），随后用 `npm run verify` 核对线上。
 
 > 如果你的网络能直连 `github.com`，也可以直接用 `git push`；注意本仓库已设置 `core.autocrlf=false` 以避免行尾差异。
 
