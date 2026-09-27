@@ -51,6 +51,7 @@ console.log('MBTI 静态契约测试\n');
     'favicon.svg', 'manifest.json', 'robots.txt', 'sitemap.xml',
     'assets/og-image.png', 'assets/icon-192.png', 'assets/icon-512.png', 'assets/apple-touch-icon.png',
     'assets/fonts/fonts.css', 'assets/fonts/inter-var.woff2',
+    'assets/screenshots/home.png', 'assets/screenshots/test.png', 'assets/screenshots/result.png',
     'tools/make-icons.js', 'tools/fetch-fonts.js', 'tools/make-type-pages.js', 'tools/push-via-api.js',
     'tools/verify-deploy.js', 'tools/audit-css.js', 'tools/audit-bank.js',
     'mbti-static.test.js', 'mbti-logic.test.js', 'mbti-psychometrics.test.js', 'mbti-smoke.test.js', 'mbti-sw.test.js',

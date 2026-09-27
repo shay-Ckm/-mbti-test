@@ -35,45 +35,91 @@
     <div class="blob b2"></div>
     <div class="blob b3"></div>
 
-    <div class="home-logo">✦ MBTI 人格实验室 ✦</div>
+    <div class="home-grid">
+      <div class="home-copy">
+        <div class="home-logo">✦ MBTI 人格实验室 ✦</div>
 
-    <h1 class="home-title" id="homeTitle" aria-label="发现你的人格密码">
-      <span id="typewriterText"></span><span class="caret" id="caret">|</span>
-    </h1>
+        <h1 class="home-title" id="homeTitle" aria-label="发现你的人格密码">
+          <span id="typewriterText"></span><span class="caret" id="caret">|</span>
+        </h1>
 
-    <p class="home-sub">两种档位 · 无需注册 · 结果可保存与分享</p>
+        <p class="home-sub">两种档位 · 无需注册 · 结果可保存与分享</p>
 
-    <div class="home-chips">
-      <div class="home-chip"><span class="hc-letters">E/I</span><small>外向 ⇄ 内向</small></div>
-      <div class="home-chip"><span class="hc-letters">S/N</span><small>实感 ⇄ 直觉</small></div>
-      <div class="home-chip"><span class="hc-letters">T/F</span><small>思考 ⇄ 情感</small></div>
-      <div class="home-chip"><span class="hc-letters">J/P</span><small>判断 ⇄ 感知</small></div>
+        <div class="home-chips">
+          <div class="home-chip"><span class="hc-letters">E/I</span><small>外向 ⇄ 内向</small></div>
+          <div class="home-chip"><span class="hc-letters">S/N</span><small>实感 ⇄ 直觉</small></div>
+          <div class="home-chip"><span class="hc-letters">T/F</span><small>思考 ⇄ 情感</small></div>
+          <div class="home-chip"><span class="hc-letters">J/P</span><small>判断 ⇄ 感知</small></div>
+        </div>
+
+        <p class="home-stats" id="homeCount">加载中…</p>
+      </div>
+
+      <!-- 品牌图形：四个二分法围绕一个六边形（人格徽章的母题） -->
+      <aside class="home-visual" aria-hidden="true">
+        <svg class="dial" viewBox="0 0 440 440">
+          <defs>
+            <linearGradient id="dialStroke" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#B9B3FF" /><stop offset="0.5" stop-color="#7C74FF" /><stop offset="1" stop-color="#3EE0E0" />
+            </linearGradient>
+            <radialGradient id="dialGlow">
+              <stop offset="0" stop-color="#7C74FF" stop-opacity="0.55" /><stop offset="1" stop-color="#7C74FF" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="220" cy="220" r="188" fill="url(#dialGlow)" />
+          <circle cx="220" cy="220" r="176" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1" stroke-dasharray="2 9" />
+          <g fill="none" stroke="url(#dialStroke)" stroke-width="2.5" stroke-linecap="round">
+            <path d="M220 44 A176 176 0 0 1 344 132" />
+            <path d="M364 220 A176 176 0 0 1 276 344" />
+            <path d="M220 396 A176 176 0 0 1 96 308" />
+            <path d="M76 220 A176 176 0 0 1 164 96" />
+          </g>
+          <circle cx="220" cy="220" r="150" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" />
+          <polygon points="220,104 336,220 220,336 104,220" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.22)" stroke-width="1.2" />
+          <polygon points="220,132 308,220 220,308 132,220" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" />
+          <polygon points="220,150 290,220 220,290 150,220" fill="url(#dialGlow)" stroke="url(#dialStroke)" stroke-width="2" class="dial-hex" />
+          <polygon class="dial-core" points="220,186 249.4,203 249.4,237 220,254 190.6,237 190.6,203" fill="none" stroke="url(#dialStroke)" stroke-width="1.6" opacity="0.9" />
+          <g class="dial-labels">
+            <text x="220" y="26" text-anchor="middle">E / I</text>
+            <text x="412" y="226" text-anchor="middle">S / N</text>
+            <text x="220" y="432" text-anchor="middle">T / F</text>
+            <text x="28" y="226" text-anchor="middle">J / P</text>
+          </g>
+          <g fill="#FFFFFF" opacity="0.55">
+            <circle cx="344" cy="132" r="3" /><circle cx="276" cy="344" r="3" />
+            <circle cx="96" cy="308" r="3" /><circle cx="164" cy="96" r="3" />
+          </g>
+        </svg>
+      </aside>
     </div>
 
-    <p class="home-note"><a href="relation.html">💞 或者先看看 16 型关系匹配矩阵 →</a></p>
+    <!-- 档位选择 + 开始 -->
+    <section class="home-start">
+      <div class="mode-cards" id="modeCards">
+        <button type="button" class="mode-card" data-mode="quick" aria-pressed="false">
+          <span class="mc-badge">快速</span>
+          <b class="mc-title">快速测试</b>
+          <span class="mc-meta">24 题 · 约 5 分钟</span>
+          <span class="mc-desc">精选题目，快速拿到结果，适合分享给朋友</span>
+        </button>
+        <button type="button" class="mode-card active" data-mode="deep" aria-pressed="true">
+          <span class="mc-badge rec">推荐</span>
+          <b class="mc-title">深度测试</b>
+          <span class="mc-meta">64 题 · 约 12-14 分钟</span>
+          <span class="mc-desc">全覆盖题库，结果更精细，含一致性校验</span>
+        </button>
+      </div>
 
-    <!-- 档位选择 -->
-    <div class="mode-cards" id="modeCards">
-      <button type="button" class="mode-card" data-mode="quick" aria-pressed="false">
-        <span class="mc-badge">快速</span>
-        <b class="mc-title">快速测试</b>
-        <span class="mc-meta">24 题 · 约 5 分钟</span>
-        <span class="mc-desc">精选题目，快速拿到结果，适合分享给朋友</span>
-      </button>
-      <button type="button" class="mode-card active" data-mode="deep" aria-pressed="true">
-        <span class="mc-badge rec">推荐</span>
-        <b class="mc-title">深度测试</b>
-        <span class="mc-meta">64 题 · 约 12-14 分钟</span>
-        <span class="mc-desc">全覆盖题库，结果更精细，含一致性校验</span>
-      </button>
-    </div>
+      <p class="start-meta" id="startMeta">64 题 · 约 12-14 分钟 · 64 题全覆盖 · 精度更高，含侧面一致性与镜像题校验</p>
+      <a href="test.html" class="btn btn-primary start-btn" id="startBtn">开始深度测试 →</a>
+      <p class="resume-hint" id="resumeHint"></p>
+    </section>
 
-    <p class="start-meta" id="startMeta">64 题 · 约 12-14 分钟 · 64 题全覆盖 · 精度更高，含侧面一致性与镜像题校验</p>
-    <a href="test.html" class="btn start-btn" id="startBtn">开始深度测试 →</a>
-    <p class="resume-hint" id="resumeHint"></p>
-
-    <p class="home-stats" id="homeCount">加载中…</p>
-    <p class="home-note">MBTI 仅供参考，人格是流动的，别让标签定义你 😉</p>
+    <footer class="home-foot">
+      <a class="home-link" href="relation.html">💞 16 型关系匹配矩阵</a>
+      <a class="home-link" href="types/intj.html">📚 类型百科</a>
+      <p class="home-note">MBTI 仅供参考，人格是流动的，别让标签定义你 😉</p>
+    </footer>
   </main>
 
   <script src="data/questions.js"></script>

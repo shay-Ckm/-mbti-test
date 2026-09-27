@@ -1012,7 +1012,9 @@ function updateProgress() {
     return v !== undefined && v !== null;
   }).length;
   $('#progressFill').style.width = (done / total * 100) + '%';
-  $('#qDone').textContent = '已完成 ' + done + ' / ' + total + ' 题';
+  /* #qDone 只写数字：外层 HTML 已有「已完成 … 题」文案，
+     旧写法会把整句塞进 <b> 里，渲染成「已完成 已完成 17 / 64 题 题」 */
+  $('#qDone').textContent = done + ' / ' + total;
   /* 无障碍：把进度暴露给读屏软件 */
   var track = $('#progressTrack');
   if (track && track.setAttribute) {
