@@ -1,6 +1,6 @@
 {
   "name": "mbti-personality-test",
-  "version": "4.5.0",
+  "version": "5.0.0",
   "private": true,
   "description": "纯前端 MBTI 人格测试（双档位题库 24/64 题 · 侧面一致性与镜像题校验 · 完整测评报告）",
   "keywords": ["mbti", "personality-test", "vanilla-js", "static-site"],

@@ -1,118 +1,225 @@
 /* ============================================================
-   题库 v3 · 双档位共用同一题库
+   题库 v4 · 200 题（两档共用，开测时按维度等比例随机抽题）
    ------------------------------------------------------------
-   v3 相对 v2 的改动（针对"结果不够准"的系统性修正）：
-   1. 题量 60 → 64：每维 16 题（v2 为 15 题，8:7 不对称）
-   2. 极性严格配平：每维 8 : 8，全局 32 : 32（v2 为 32 : 28）
-   3. facet 重构为"两极共享的内容侧面"：每个侧面各有 2 题测首字母极 +
-      2 题测次字母极。v2 的两极各用一套不同侧面名，导致差值里混入
-      "内容不同"的偏差，也无法做侧面级一致性判断。
-   4. 剔除/改写低区分度与混淆题：v2 中"享受一顿好饭""相信亲身经历"
-      "在意结论是否站得住脚"等近乎人人同意的题（天花板效应），以及
-      混入社交焦虑（被点名慌张）、神经质（情绪容易被影响）、尽责性
-      （提前做完）等非目标构念的题。
-   5. 一致性配对从 4 组扩到 8 组（每个二分法 2 组镜像题）。
-
+   结构：每个维度 50 题 = 5 个内容侧面 × 10 题（每个侧面两极各 5 题）
+        四个维度合计 200 题；每维两极 25 : 25，全局 100 : 100
    字段：
    - dim   ：维度 EI / SN / TF / JP（首字母为"首字母极" E/S/T/J）
    - dir   ：-1 = 同意本题 → 偏向首字母极；+1 = 同意本题 → 偏向次字母极
-   - facet ：两极共享的内容侧面（4 个/维，每侧面两侧各 2 题）
-   - quick ：是否属于「快速测试」子集（每维 6 题，极性 3:3，覆盖全部 4 个侧面）
-   - pair  ：一致性镜像题标记（同组两题语义互为镜像、方向相反）
-   - text  ：单构念、行为化、情境具体、不含"而不是/比起…更"等对比句式
+   - facet ：内容侧面（两极共享，每侧面两侧各 5 题）
+   - pair  ：镜像题标记（同一组两题语义互为镜像、方向相反）
+   - text  ：单构念、行为化、情境具体、不含对比句式
 
-   题量：
-   - 快速测试：24 题（每维 6 题，约 5 分钟）
-   - 深度测试：64 题（每维 16 题，约 12-14 分钟）
+   抽题（见 script.js 的 buildQuestionSet）：
+   - 快速测试：每维随机 6 题（3:3）；深度测试：每维随机 16 题（8:8）
+   - 名额按内容侧面均分，优先抽最近没出现过的题；会话内题序固定
+   本文件由 tools/build-bank.js 从 _bank/*.json 生成，请勿手改。
    ============================================================ */
 'use strict';
 
-var BANK_VERSION = 3;
+var BANK_VERSION = 4;
 
 var QUESTIONS = [
-  /* ================= E/I 外向-内向 =================
-     侧面（两极共享）：social 社交启动 / energy 能量恢复 / express 表达顺序 / stim 刺激需求 */
-  /* E 极（dir: -1） */
-  { id: 'q01', dim: 'EI', dir: -1, facet: 'social',  quick: true,  pair: null,     text: '到了新场合，我通常会先开口和人打招呼' },
-  { id: 'q02', dim: 'EI', dir: -1, facet: 'social',  quick: false, pair: null,     text: '需要认识新朋友的场合，我会主动去搭话' },
-  { id: 'q03', dim: 'EI', dir: -1, facet: 'energy',  quick: true,  pair: 'C-EI-2', text: '和一群人待过之后，我通常还很有精神' },
-  { id: 'q04', dim: 'EI', dir: -1, facet: 'energy',  quick: false, pair: null,     text: '一个人待久了，我会想找人聊聊天' },
-  { id: 'q05', dim: 'EI', dir: -1, facet: 'express', quick: true,  pair: null,     text: '我通常是边说边把想法理清楚' },
-  { id: 'q06', dim: 'EI', dir: -1, facet: 'express', quick: false, pair: null,     text: '有想法时，我先讲出来再慢慢完善' },
-  { id: 'q07', dim: 'EI', dir: -1, facet: 'stim',    quick: false, pair: 'C-EI-1', text: '周围安静太久，我会觉得有点闷' },
-  { id: 'q08', dim: 'EI', dir: -1, facet: 'stim',    quick: false, pair: null,     text: '空闲时间我会安排和朋友见面' },
-  /* I 极（dir: +1） */
-  { id: 'q09', dim: 'EI', dir: +1, facet: 'social',  quick: false, pair: null,     text: '在陌生的聚会里，我通常等别人先开口' },
-  { id: 'q10', dim: 'EI', dir: +1, facet: 'social',  quick: false, pair: null,     text: '要和陌生人打交道时，我会先观察一会儿' },
-  { id: 'q11', dim: 'EI', dir: +1, facet: 'energy',  quick: true,  pair: 'C-EI-2', text: '社交结束后，我需要独处一段时间才缓过来' },
-  { id: 'q12', dim: 'EI', dir: +1, facet: 'energy',  quick: false, pair: null,     text: '连续几天和人应酬，我会明显觉得累' },
-  { id: 'q13', dim: 'EI', dir: +1, facet: 'express', quick: true,  pair: null,     text: '我习惯先在心里想清楚再开口' },
-  { id: 'q14', dim: 'EI', dir: +1, facet: 'express', quick: false, pair: null,     text: '讨论时，我通常等别人说完再组织自己的想法' },
-  { id: 'q15', dim: 'EI', dir: +1, facet: 'stim',    quick: true,  pair: 'C-EI-1', text: '一个人的安静时间对我来说很重要' },
-  { id: 'q16', dim: 'EI', dir: +1, facet: 'stim',    quick: false, pair: null,     text: '长时间待在热闹的环境里，我会想找个角落待着' },
-
-  /* ================= S/N 实感-直觉 =================
-     侧面：focus 关注焦点 / source 判断依据 / style 思考方式 / time 时间取向 */
-  /* S 极（dir: -1） */
-  { id: 'q17', dim: 'SN', dir: -1, facet: 'focus',  quick: true,  pair: null,     text: '听人讲事情时，我会留意具体的时间地点' },
-  { id: 'q18', dim: 'SN', dir: -1, facet: 'focus',  quick: false, pair: null,     text: '我比较容易记住具体的数字和细节' },
-  { id: 'q19', dim: 'SN', dir: -1, facet: 'source', quick: false, pair: null,     text: '判断一件事是否可信，我主要看实际验证的结果' },
-  { id: 'q20', dim: 'SN', dir: -1, facet: 'source', quick: true,  pair: null,     text: '做事之前，我通常参照过去管用的做法' },
-  { id: 'q21', dim: 'SN', dir: -1, facet: 'style',  quick: true,  pair: 'C-SN-2', text: '接到任务时，我先问清楚具体怎么做' },
-  { id: 'q22', dim: 'SN', dir: -1, facet: 'style',  quick: false, pair: null,     text: '我倾向接能马上上手、看得见成果的事' },
-  { id: 'q23', dim: 'SN', dir: -1, facet: 'time',   quick: false, pair: 'C-SN-1', text: '我很少花时间设想很久以后的事' },
-  { id: 'q24', dim: 'SN', dir: -1, facet: 'time',   quick: false, pair: null,     text: '聊事情时，我说的是眼下正在发生的情况' },
-  /* N 极（dir: +1） */
-  { id: 'q25', dim: 'SN', dir: +1, facet: 'focus',  quick: true,  pair: null,     text: '听人讲事情时，我关心的是背后的意图和走向' },
-  { id: 'q26', dim: 'SN', dir: +1, facet: 'focus',  quick: false, pair: null,     text: '我常从一件小事想到更大的图景' },
-  { id: 'q27', dim: 'SN', dir: +1, facet: 'source', quick: true,  pair: null,     text: '没有标准答案的问题很吸引我' },
-  { id: 'q28', dim: 'SN', dir: +1, facet: 'source', quick: false, pair: null,     text: '我经常从不相干的事里发现相似的规律' },
-  { id: 'q29', dim: 'SN', dir: +1, facet: 'style',  quick: false, pair: 'C-SN-2', text: '我会去弄清一件事背后的原理' },
-  { id: 'q30', dim: 'SN', dir: +1, facet: 'style',  quick: false, pair: null,     text: '我常想一件事背后的含义' },
-  { id: 'q31', dim: 'SN', dir: +1, facet: 'time',   quick: true,  pair: 'C-SN-1', text: '我经常设想未来可能出现的场景' },
-  { id: 'q32', dim: 'SN', dir: +1, facet: 'time',   quick: false, pair: null,     text: '我常在想"如果换一种做法会怎样"' },
-
-  /* ================= T/F 思考-情感 =================
-     侧面：decision 决策依据 / conflict 冲突处理 / empathy 回应他人 / standard 评价标准 */
-  /* T 极（dir: -1） */
-  { id: 'q33', dim: 'TF', dir: -1, facet: 'decision', quick: true,  pair: null,     text: '做决定时，我主要看理由是否站得住脚' },
-  { id: 'q34', dim: 'TF', dir: -1, facet: 'decision', quick: false, pair: null,     text: '同样的情况，我倾向于给出同样的判断' },
-  { id: 'q35', dim: 'TF', dir: -1, facet: 'conflict', quick: false, pair: 'C-TF-1', text: '发现问题时，我会直接指出来' },
-  { id: 'q36', dim: 'TF', dir: -1, facet: 'conflict', quick: false, pair: null,     text: '讨论分歧时，我习惯于对事不对人' },
-  { id: 'q37', dim: 'TF', dir: -1, facet: 'empathy',  quick: true,  pair: 'C-TF-2', text: '别人诉苦时，我第一反应是帮他分析原因' },
-  { id: 'q38', dim: 'TF', dir: -1, facet: 'empathy',  quick: false, pair: null,     text: '有人情绪激动时，我会先想把事情理清楚' },
-  { id: 'q39', dim: 'TF', dir: -1, facet: 'standard', quick: true,  pair: null,     text: '评价一件事，我更在意结论是否成立' },
-  { id: 'q40', dim: 'TF', dir: -1, facet: 'standard', quick: false, pair: null,     text: '我习惯用同一套标准衡量不同的人和事' },
-  /* F 极（dir: +1） */
-  { id: 'q41', dim: 'TF', dir: +1, facet: 'decision', quick: true,  pair: null,     text: '做决定时，我主要考虑这件事对相关的人好不好' },
-  { id: 'q42', dim: 'TF', dir: +1, facet: 'decision', quick: false, pair: null,     text: '我会为了照顾别人的处境而调整原本的安排' },
-  { id: 'q43', dim: 'TF', dir: +1, facet: 'conflict', quick: true,  pair: 'C-TF-1', text: '指出问题前，我会先想怎么说才不伤人' },
-  { id: 'q44', dim: 'TF', dir: +1, facet: 'conflict', quick: false, pair: null,     text: '现场气氛变僵时，我会想办法缓和' },
-  { id: 'q45', dim: 'TF', dir: +1, facet: 'empathy',  quick: true,  pair: 'C-TF-2', text: '别人诉苦时，我第一反应是让他知道我理解他的感受' },
-  { id: 'q46', dim: 'TF', dir: +1, facet: 'empathy',  quick: false, pair: null,     text: '我能察觉到身边人情绪的细微变化' },
-  { id: 'q47', dim: 'TF', dir: +1, facet: 'standard', quick: false, pair: null,     text: '我会考虑每个人的具体情况，再给判断' },
-  { id: 'q48', dim: 'TF', dir: +1, facet: 'standard', quick: false, pair: null,     text: '我更在意一件事处理得是否让人舒服' },
-
-  /* ================= J/P 判断-感知 =================
-     侧面：planning 计划性 / structure 结构需求 / decisive 决断方式 / timing 时间管理 */
-  /* J 极（dir: -1） */
-  { id: 'q49', dim: 'JP', dir: -1, facet: 'planning',  quick: true,  pair: 'C-JP-1', text: '出行前，我通常把行程先安排好' },
-  { id: 'q50', dim: 'JP', dir: -1, facet: 'planning',  quick: false, pair: null,     text: '做事之前，我会先把步骤列出来' },
-  { id: 'q51', dim: 'JP', dir: -1, facet: 'structure', quick: true,  pair: null,     text: '我的东西一般都有固定的位置' },
-  { id: 'q52', dim: 'JP', dir: -1, facet: 'structure', quick: false, pair: null,     text: '我希望事情有清楚的分工和流程' },
-  { id: 'q53', dim: 'JP', dir: -1, facet: 'decisive',  quick: false, pair: null,     text: '需要选择时，我倾向于尽快定下来' },
-  { id: 'q54', dim: 'JP', dir: -1, facet: 'decisive',  quick: false, pair: null,     text: '定下来的事，我一般不想再改' },
-  { id: 'q55', dim: 'JP', dir: -1, facet: 'timing',    quick: true,  pair: 'C-JP-2', text: '我通常会把任务提前完成' },
-  { id: 'q56', dim: 'JP', dir: -1, facet: 'timing',    quick: false, pair: null,     text: '我习惯在截止日期前就把事情交出去' },
-  /* P 极（dir: +1） */
-  { id: 'q57', dim: 'JP', dir: +1, facet: 'planning',  quick: true,  pair: 'C-JP-1', text: '我习惯走一步看一步，随时调整' },
-  { id: 'q58', dim: 'JP', dir: +1, facet: 'planning',  quick: false, pair: null,     text: '临时改变安排，我通常觉得挺有意思' },
-  { id: 'q59', dim: 'JP', dir: +1, facet: 'structure', quick: false, pair: null,     text: '我的东西放在哪儿比较随性' },
-  { id: 'q60', dim: 'JP', dir: +1, facet: 'structure', quick: false, pair: null,     text: '流程不固定，我也能做得下去' },
-  { id: 'q61', dim: 'JP', dir: +1, facet: 'decisive',  quick: true,  pair: null,     text: '我不想太早把选择定死' },
-  { id: 'q62', dim: 'JP', dir: +1, facet: 'decisive',  quick: false, pair: null,     text: '多留几个选项会让我更安心' },
-  { id: 'q63', dim: 'JP', dir: +1, facet: 'timing',    quick: true,  pair: 'C-JP-2', text: '我常常在临近截止时才进入状态' },
-  { id: 'q64', dim: 'JP', dir: +1, facet: 'timing',    quick: false, pair: null,     text: '我习惯等到有压力了才开始动手' }
+  { id: 'q001', dim: 'EI', dir: -1, facet: 'social', pair: 'C-EI-social', text: '到了新场合，我通常会先开口和人打招呼' },
+  { id: 'q002', dim: 'EI', dir: -1, facet: 'social', pair: null, text: '需要认识新朋友的场合，我会主动去搭话' },
+  { id: 'q003', dim: 'EI', dir: -1, facet: 'social', pair: null, text: '排队等餐时，我常和旁边的人聊上几句' },
+  { id: 'q004', dim: 'EI', dir: -1, facet: 'social', pair: null, text: '开会前那几分钟，我习惯和同事随便聊两句' },
+  { id: 'q005', dim: 'EI', dir: -1, facet: 'social', pair: null, text: '进了群聊，我会先发消息把气氛带起来' },
+  { id: 'q006', dim: 'EI', dir: +1, facet: 'social', pair: 'C-EI-social', text: '在陌生的聚会里，我通常等其他人先开口' },
+  { id: 'q007', dim: 'EI', dir: +1, facet: 'social', pair: null, text: '饭局上人一多，我多半待在边上先看看' },
+  { id: 'q008', dim: 'EI', dir: +1, facet: 'social', pair: null, text: '散步遇到邻居时，我一般等对方先打招呼' },
+  { id: 'q009', dim: 'EI', dir: +1, facet: 'social', pair: null, text: '聚会中场休息，我常找个位置自己待一会儿' },
+  { id: 'q010', dim: 'EI', dir: +1, facet: 'social', pair: null, text: '团建坐大巴时，我通常自己看窗外' },
+  { id: 'q011', dim: 'EI', dir: -1, facet: 'energy', pair: 'C-EI-energy', text: '和一群人待过之后，我通常还很有精神' },
+  { id: 'q012', dim: 'EI', dir: -1, facet: 'energy', pair: null, text: '一个人待久了，我会想找人聊聊天' },
+  { id: 'q013', dim: 'EI', dir: -1, facet: 'energy', pair: null, text: '白天开完会，晚上我还想约人出去吃个饭' },
+  { id: 'q014', dim: 'EI', dir: -1, facet: 'energy', pair: null, text: '周末连着参加两场活动，我照样越玩越起劲' },
+  { id: 'q015', dim: 'EI', dir: -1, facet: 'energy', pair: null, text: '跟人打完一通长电话，我会觉得挺充实' },
+  { id: 'q016', dim: 'EI', dir: +1, facet: 'energy', pair: 'C-EI-energy', text: '社交结束后，我需要独处一段时间才缓过来' },
+  { id: 'q017', dim: 'EI', dir: +1, facet: 'energy', pair: null, text: '连续几天和人应酬，我会明显觉得累' },
+  { id: 'q018', dim: 'EI', dir: +1, facet: 'energy', pair: null, text: '热闹的饭局散场后，我想安静地待上一晚' },
+  { id: 'q019', dim: 'EI', dir: +1, facet: 'energy', pair: null, text: '参加完一天的培训，回家我只想一个人待着' },
+  { id: 'q020', dim: 'EI', dir: +1, facet: 'energy', pair: null, text: '跟朋友聊完天，我常需要自己坐一会儿' },
+  { id: 'q021', dim: 'EI', dir: -1, facet: 'express', pair: 'C-EI-express', text: '我通常是边说边把想法理清楚' },
+  { id: 'q022', dim: 'EI', dir: -1, facet: 'express', pair: null, text: '有想法时，我先讲出来再慢慢完善' },
+  { id: 'q023', dim: 'EI', dir: -1, facet: 'express', pair: null, text: '打字聊天时，我常常一句话分成几条发' },
+  { id: 'q024', dim: 'EI', dir: -1, facet: 'express', pair: null, text: '跟人聊着聊着，我常冒出新的想法' },
+  { id: 'q025', dim: 'EI', dir: -1, facet: 'express', pair: null, text: '写方案前，我会先跟同事口头过一遍内容' },
+  { id: 'q026', dim: 'EI', dir: +1, facet: 'express', pair: 'C-EI-express', text: '我习惯先在心里想清楚再开口' },
+  { id: 'q027', dim: 'EI', dir: +1, facet: 'express', pair: null, text: '发消息前，我常把整段话重新读一遍' },
+  { id: 'q028', dim: 'EI', dir: +1, facet: 'express', pair: null, text: '被问到问题时，我会停一下再回答' },
+  { id: 'q029', dim: 'EI', dir: +1, facet: 'express', pair: null, text: '聚会上聊到陌生话题，我多数时候在听' },
+  { id: 'q030', dim: 'EI', dir: +1, facet: 'express', pair: null, text: '话到嘴边，我一般会再压一压才说出口' },
+  { id: 'q031', dim: 'EI', dir: -1, facet: 'stim', pair: 'C-EI-stim', text: '周围安静太久，我会觉得有点闷' },
+  { id: 'q032', dim: 'EI', dir: -1, facet: 'stim', pair: null, text: '周末空下来，我会约朋友出去逛逛' },
+  { id: 'q033', dim: 'EI', dir: -1, facet: 'stim', pair: null, text: '在家写东西时，我常开着音乐或播客' },
+  { id: 'q034', dim: 'EI', dir: -1, facet: 'stim', pair: null, text: '坐地铁时，我常刷刷热闹的短视频' },
+  { id: 'q035', dim: 'EI', dir: -1, facet: 'stim', pair: null, text: '长时间没有安排，我会觉得日子有点无聊' },
+  { id: 'q036', dim: 'EI', dir: +1, facet: 'stim', pair: 'C-EI-stim', text: '周围静下来的时候，我反倒觉得舒服' },
+  { id: 'q037', dim: 'EI', dir: +1, facet: 'stim', pair: null, text: '在热闹的场所待久了，我会想找角落歇会儿' },
+  { id: 'q038', dim: 'EI', dir: +1, facet: 'stim', pair: null, text: '需要专注时，我希望周围没有声音' },
+  { id: 'q039', dim: 'EI', dir: +1, facet: 'stim', pair: null, text: '朋友约我去吵闹的酒吧，我常找理由推掉' },
+  { id: 'q040', dim: 'EI', dir: +1, facet: 'stim', pair: null, text: '排座位时，我会挑一个清静的位置' },
+  { id: 'q041', dim: 'EI', dir: -1, facet: 'breadth', pair: 'C-EI-breadth', text: '一场活动下来，我能加到好几个新联系方式' },
+  { id: 'q042', dim: 'EI', dir: -1, facet: 'breadth', pair: null, text: '楼里其他部门的人，我大多能叫出名字' },
+  { id: 'q043', dim: 'EI', dir: -1, facet: 'breadth', pair: null, text: '坐一次长途车，我能和邻座聊熟' },
+  { id: 'q044', dim: 'EI', dir: -1, facet: 'breadth', pair: null, text: '进新公司第一周，我就把各部门混熟了' },
+  { id: 'q045', dim: 'EI', dir: -1, facet: 'breadth', pair: null, text: '玩桌游时，我会主动拉刚认识的人组队' },
+  { id: 'q046', dim: 'EI', dir: +1, facet: 'breadth', pair: 'C-EI-breadth', text: '我常来往的朋友就那么两三个' },
+  { id: 'q047', dim: 'EI', dir: +1, facet: 'breadth', pair: null, text: '我倾向于反复约同一批朋友见面' },
+  { id: 'q048', dim: 'EI', dir: +1, facet: 'breadth', pair: null, text: '新认识的人，我通常过很久才聊到私事' },
+  { id: 'q049', dim: 'EI', dir: +1, facet: 'breadth', pair: null, text: '聚会散了之后，我很少主动再约新朋友' },
+  { id: 'q050', dim: 'EI', dir: +1, facet: 'breadth', pair: null, text: '跟少数几个人处成知己，值得花上几年' },
+  { id: 'q051', dim: 'SN', dir: -1, facet: 'focus', pair: 'C-SN-focus', text: '听人讲事情，我会记住具体的时间地点' },
+  { id: 'q052', dim: 'SN', dir: +1, facet: 'focus', pair: 'C-SN-focus', text: '听人讲事情，我关心背后的意图和走向' },
+  { id: 'q053', dim: 'SN', dir: -1, facet: 'focus', pair: null, text: '我常注意到别人衣服上的小细节' },
+  { id: 'q054', dim: 'SN', dir: +1, facet: 'focus', pair: null, text: '看一部电影，我琢磨导演想表达什么' },
+  { id: 'q055', dim: 'SN', dir: -1, facet: 'focus', pair: null, text: '聊天时我容易记住对方说过的原话' },
+  { id: 'q056', dim: 'SN', dir: +1, facet: 'focus', pair: null, text: '我常把零散的事连成一条线索' },
+  { id: 'q057', dim: 'SN', dir: -1, facet: 'focus', pair: null, text: '看新闻时，我关注事情发生的具体数字' },
+  { id: 'q058', dim: 'SN', dir: +1, facet: 'focus', pair: null, text: '一件小事，我常想到它背后的趋势' },
+  { id: 'q059', dim: 'SN', dir: -1, facet: 'focus', pair: null, text: '看东西时，我第一眼注意到颜色和形状' },
+  { id: 'q060', dim: 'SN', dir: +1, facet: 'focus', pair: null, text: '聊天时，我留意话题会往哪儿走' },
+  { id: 'q061', dim: 'SN', dir: -1, facet: 'source', pair: 'C-SN-source', text: '判断一件事是否可信，我主要看实际验证的结果' },
+  { id: 'q062', dim: 'SN', dir: +1, facet: 'source', pair: 'C-SN-source', text: '判断一件事，我常凭直觉和联想' },
+  { id: 'q063', dim: 'SN', dir: -1, facet: 'source', pair: null, text: '别人推荐的东西，我会先自己试一遍' },
+  { id: 'q064', dim: 'SN', dir: +1, facet: 'source', pair: null, text: '没标准答案的问题很吸引我' },
+  { id: 'q065', dim: 'SN', dir: -1, facet: 'source', pair: null, text: '做事之前，我参照过去管用的做法' },
+  { id: 'q066', dim: 'SN', dir: +1, facet: 'source', pair: null, text: '我经常从不相干的事里发现相似的规律' },
+  { id: 'q067', dim: 'SN', dir: -1, facet: 'source', pair: null, text: '听到一个说法，我会查证具体来源' },
+  { id: 'q068', dim: 'SN', dir: +1, facet: 'source', pair: null, text: '我的想法常来自突然冒出的念头' },
+  { id: 'q069', dim: 'SN', dir: -1, facet: 'source', pair: null, text: '我信那些亲眼见过、亲手试过的事' },
+  { id: 'q070', dim: 'SN', dir: +1, facet: 'source', pair: null, text: '灵感来的时候，我顺着它往下想' },
+  { id: 'q071', dim: 'SN', dir: -1, facet: 'style', pair: 'C-SN-style', text: '接到任务时，我先问清楚具体怎么做' },
+  { id: 'q072', dim: 'SN', dir: +1, facet: 'style', pair: 'C-SN-style', text: '我会去弄清一件事背后的原理' },
+  { id: 'q073', dim: 'SN', dir: -1, facet: 'style', pair: null, text: '学新东西时，我习惯边做边摸索' },
+  { id: 'q074', dim: 'SN', dir: +1, facet: 'style', pair: null, text: '我常琢磨一件事背后的含义' },
+  { id: 'q075', dim: 'SN', dir: -1, facet: 'style', pair: null, text: '我倾向接能马上上手、看得见成果的事' },
+  { id: 'q076', dim: 'SN', dir: +1, facet: 'style', pair: null, text: '事情之间的关联，我喜欢搞清楚' },
+  { id: 'q077', dim: 'SN', dir: -1, facet: 'style', pair: null, text: '别人讲道理时，我要具体的例子' },
+  { id: 'q078', dim: 'SN', dir: +1, facet: 'style', pair: null, text: '大大小小的事，我常归到一个框架里' },
+  { id: 'q079', dim: 'SN', dir: -1, facet: 'style', pair: null, text: '动手之前，我会先摸清操作步骤' },
+  { id: 'q080', dim: 'SN', dir: +1, facet: 'style', pair: null, text: '遇到问题，我先想它属于哪类问题' },
+  { id: 'q081', dim: 'SN', dir: -1, facet: 'time', pair: 'C-SN-time', text: '我很少花时间设想很久以后的事' },
+  { id: 'q082', dim: 'SN', dir: +1, facet: 'time', pair: 'C-SN-time', text: '我经常设想未来可能出现的场景' },
+  { id: 'q083', dim: 'SN', dir: -1, facet: 'time', pair: null, text: '聊事情时，我说的是眼下正在发生的情况' },
+  { id: 'q084', dim: 'SN', dir: +1, facet: 'time', pair: null, text: '我常在想“如果换一种做法会怎样”' },
+  { id: 'q085', dim: 'SN', dir: -1, facet: 'time', pair: null, text: '我关注这个月要处理的实际事情' },
+  { id: 'q086', dim: 'SN', dir: +1, facet: 'time', pair: null, text: '几年后这件事会怎样，我常琢磨' },
+  { id: 'q087', dim: 'SN', dir: -1, facet: 'time', pair: null, text: '说起遥远的将来，我提不起兴趣' },
+  { id: 'q088', dim: 'SN', dir: +1, facet: 'time', pair: null, text: '看到新东西，我会想它以后怎么变' },
+  { id: 'q089', dim: 'SN', dir: -1, facet: 'time', pair: null, text: '我的心思大多放在手头的事情上' },
+  { id: 'q090', dim: 'SN', dir: +1, facet: 'time', pair: null, text: '还没发生的事，我的注意力常飘过去' },
+  { id: 'q091', dim: 'SN', dir: -1, facet: 'change', pair: 'C-SN-change', text: '用过的东西我用顺手了就不换' },
+  { id: 'q092', dim: 'SN', dir: +1, facet: 'change', pair: 'C-SN-change', text: '新出的东西，我总想先试上一试' },
+  { id: 'q093', dim: 'SN', dir: -1, facet: 'change', pair: null, text: '常去的店，我点那几样熟悉的菜' },
+  { id: 'q094', dim: 'SN', dir: +1, facet: 'change', pair: null, text: '买东西时，我常挑没见过的牌子' },
+  { id: 'q095', dim: 'SN', dir: -1, facet: 'change', pair: null, text: '同一条路走熟了，我很少换路线' },
+  { id: 'q096', dim: 'SN', dir: +1, facet: 'change', pair: null, text: '同一件事，我喜欢换个法子再做一遍' },
+  { id: 'q097', dim: 'SN', dir: -1, facet: 'change', pair: null, text: '家里的摆设，我习惯一直保持原样' },
+  { id: 'q098', dim: 'SN', dir: +1, facet: 'change', pair: null, text: '换季时，我会试试不一样的穿法' },
+  { id: 'q099', dim: 'SN', dir: -1, facet: 'change', pair: null, text: '老牌子的东西，我不太想换新的' },
+  { id: 'q100', dim: 'SN', dir: +1, facet: 'change', pair: null, text: '聊天时，我喜欢听没听过的观点' },
+  { id: 'q101', dim: 'TF', dir: -1, facet: 'decision', pair: 'C-TF-decision', text: '做选择时，我先看理由是否站得住脚' },
+  { id: 'q102', dim: 'TF', dir: -1, facet: 'decision', pair: null, text: '决定之前，我会把各种利弊列清楚' },
+  { id: 'q103', dim: 'TF', dir: -1, facet: 'decision', pair: null, text: '同样的情况，我倾向给出同样的判断' },
+  { id: 'q104', dim: 'TF', dir: -1, facet: 'decision', pair: null, text: '定一件事之前，我先把利弊逐条摆出来' },
+  { id: 'q105', dim: 'TF', dir: -1, facet: 'decision', pair: null, text: '取舍的时候，我更看重哪个方案更有效' },
+  { id: 'q106', dim: 'TF', dir: +1, facet: 'decision', pair: 'C-TF-decision', text: '做选择时，我主要想这件事对身边人好不好' },
+  { id: 'q107', dim: 'TF', dir: +1, facet: 'decision', pair: null, text: '一个决定会牵连到谁，我会先想到这一层' },
+  { id: 'q108', dim: 'TF', dir: +1, facet: 'decision', pair: null, text: '为了照顾别人的处境，我愿意调整原来的安排' },
+  { id: 'q109', dim: 'TF', dir: +1, facet: 'decision', pair: null, text: '拿不定主意时，我会问问这件事牵动了谁' },
+  { id: 'q110', dim: 'TF', dir: +1, facet: 'decision', pair: null, text: '人选安排上，我倾向挑让人心里更舒服的那个' },
+  { id: 'q111', dim: 'TF', dir: -1, facet: 'conflict', pair: 'C-TF-conflict', text: '发现事情有问题，我会当场指出来' },
+  { id: 'q112', dim: 'TF', dir: -1, facet: 'conflict', pair: null, text: '意见不合时，我习惯把话题拉回到事情本身' },
+  { id: 'q113', dim: 'TF', dir: -1, facet: 'conflict', pair: null, text: '该说的话，我会当面讲清楚，不绕弯子' },
+  { id: 'q114', dim: 'TF', dir: -1, facet: 'conflict', pair: null, text: '讨论卡住时，我会直接点出问题出在哪里' },
+  { id: 'q115', dim: 'TF', dir: -1, facet: 'conflict', pair: null, text: '有分歧就摊开谈，比闷着不说更省事' },
+  { id: 'q116', dim: 'TF', dir: +1, facet: 'conflict', pair: 'C-TF-conflict', text: '开口指出问题前，我会先琢磨怎么说不伤人' },
+  { id: 'q117', dim: 'TF', dir: +1, facet: 'conflict', pair: null, text: '气氛变僵的时候，我会想办法把话头缓下来' },
+  { id: 'q118', dim: 'TF', dir: +1, facet: 'conflict', pair: null, text: '为了不起争执，有些话我可以先放一放' },
+  { id: 'q119', dim: 'TF', dir: +1, facet: 'conflict', pair: null, text: '争得面红耳赤时，我会先照顾一下对方的情绪' },
+  { id: 'q120', dim: 'TF', dir: +1, facet: 'conflict', pair: null, text: '指出别人的疏漏时，我会挑一个合适的时机' },
+  { id: 'q121', dim: 'TF', dir: -1, facet: 'empathy', pair: 'C-TF-empathy', text: '别人诉苦时，我第一反应是帮他理清原因' },
+  { id: 'q122', dim: 'TF', dir: -1, facet: 'empathy', pair: null, text: '有人情绪激动，我会先把事情的来由问明白' },
+  { id: 'q123', dim: 'TF', dir: -1, facet: 'empathy', pair: null, text: '朋友来倒苦水，我常顺口给出几条建议' },
+  { id: 'q124', dim: 'TF', dir: -1, facet: 'empathy', pair: null, text: '别人讲遇到的麻烦，我会帮他拆成几步看' },
+  { id: 'q125', dim: 'TF', dir: -1, facet: 'empathy', pair: null, text: '对方说事的时候，我更关心这件事怎么解决' },
+  { id: 'q126', dim: 'TF', dir: +1, facet: 'empathy', pair: 'C-TF-empathy', text: '别人诉苦时，我第一反应是让他知道我懂他' },
+  { id: 'q127', dim: 'TF', dir: +1, facet: 'empathy', pair: null, text: '有人难过了，我陪着他就好，先不谈办法' },
+  { id: 'q128', dim: 'TF', dir: +1, facet: 'empathy', pair: null, text: '身边人情绪上的细微变化，我往往能察觉' },
+  { id: 'q129', dim: 'TF', dir: +1, facet: 'empathy', pair: null, text: '说话之前，我会先体会一下对方现在的心情' },
+  { id: 'q130', dim: 'TF', dir: +1, facet: 'empathy', pair: null, text: '有人诉说委屈，我会先接住他的那口气' },
+  { id: 'q131', dim: 'TF', dir: -1, facet: 'standard', pair: 'C-TF-standard', text: '评价一件事，我更在意结论是否说得通' },
+  { id: 'q132', dim: 'TF', dir: -1, facet: 'standard', pair: null, text: '同一条规矩，对谁我都按一样的尺度来' },
+  { id: 'q133', dim: 'TF', dir: -1, facet: 'standard', pair: null, text: '衡量别人的表现，我用的是同一套尺子' },
+  { id: 'q134', dim: 'TF', dir: -1, facet: 'standard', pair: null, text: '判断做得对不对，我先看事实和数据' },
+  { id: 'q135', dim: 'TF', dir: -1, facet: 'standard', pair: null, text: '评功过的时候，我尽量撇开跟谁的关系' },
+  { id: 'q136', dim: 'TF', dir: +1, facet: 'standard', pair: 'C-TF-standard', text: '给判断之前，我会先想每个人各自的情况' },
+  { id: 'q137', dim: 'TF', dir: +1, facet: 'standard', pair: null, text: '一件事办得让人舒不舒服，我很当回事' },
+  { id: 'q138', dim: 'TF', dir: +1, facet: 'standard', pair: null, text: '同一条建议，对每个人说的分量也各有轻重' },
+  { id: 'q139', dim: 'TF', dir: +1, facet: 'standard', pair: null, text: '夸人也好提意见也好，我会看对方承受得住的度' },
+  { id: 'q140', dim: 'TF', dir: +1, facet: 'standard', pair: null, text: '评判之前，我会先想想对方当时的处境' },
+  { id: 'q141', dim: 'TF', dir: -1, facet: 'tough', pair: 'C-TF-tough', text: '僵持的时候，我的立场会一直摆得很清楚' },
+  { id: 'q142', dim: 'TF', dir: -1, facet: 'tough', pair: null, text: '哪些事能让步，我心里有一条清楚的线' },
+  { id: 'q143', dim: 'TF', dir: -1, facet: 'tough', pair: null, text: '事情该怎么办就怎么办，不掺私人交情' },
+  { id: 'q144', dim: 'TF', dir: -1, facet: 'tough', pair: null, text: '话说得直一点没关系，把事讲明白最要紧' },
+  { id: 'q145', dim: 'TF', dir: -1, facet: 'tough', pair: null, text: '对方拜托我通融一下，该拒绝我也照直说' },
+  { id: 'q146', dim: 'TF', dir: +1, facet: 'tough', pair: 'C-TF-tough', text: '提要求的时候，我会给对方留个转身的余地' },
+  { id: 'q147', dim: 'TF', dir: +1, facet: 'tough', pair: null, text: '批评的话一出口，我会先看看对方受不受得住' },
+  { id: 'q148', dim: 'TF', dir: +1, facet: 'tough', pair: null, text: '熟人做得不够好，我也会先把话说得软一些' },
+  { id: 'q149', dim: 'TF', dir: +1, facet: 'tough', pair: null, text: '态度上，我会尽量留给别人一点情面' },
+  { id: 'q150', dim: 'TF', dir: +1, facet: 'tough', pair: null, text: '对方已经很难受了，我就不再追着讲道理' },
+  { id: 'q151', dim: 'JP', dir: -1, facet: 'planning', pair: 'C-JP-planning', text: '出行前，我通常把行程先安排妥当' },
+  { id: 'q152', dim: 'JP', dir: -1, facet: 'planning', pair: null, text: '做事之前，我会先把步骤列出来' },
+  { id: 'q153', dim: 'JP', dir: -1, facet: 'planning', pair: null, text: '开始一项任务前，我心里已有安排' },
+  { id: 'q154', dim: 'JP', dir: -1, facet: 'planning', pair: null, text: '周末怎么过，我一般提前定下来' },
+  { id: 'q155', dim: 'JP', dir: -1, facet: 'planning', pair: null, text: '答应别人之前，我会先看看日程表' },
+  { id: 'q156', dim: 'JP', dir: +1, facet: 'planning', pair: 'C-JP-planning', text: '我习惯走一步看一步，随时调整' },
+  { id: 'q157', dim: 'JP', dir: +1, facet: 'planning', pair: null, text: '临时改变安排，我通常觉得挺有意思' },
+  { id: 'q158', dim: 'JP', dir: +1, facet: 'planning', pair: null, text: '计划被打乱时，我能自然地接下去' },
+  { id: 'q159', dim: 'JP', dir: +1, facet: 'planning', pair: null, text: '接到新任务时，我常边做边理思路' },
+  { id: 'q160', dim: 'JP', dir: +1, facet: 'planning', pair: null, text: '我喜欢把每天安排得松一点' },
+  { id: 'q161', dim: 'JP', dir: -1, facet: 'structure', pair: 'C-JP-structure', text: '我的东西一般都有固定的位置' },
+  { id: 'q162', dim: 'JP', dir: -1, facet: 'structure', pair: null, text: '我希望事情有清楚的分工和流程' },
+  { id: 'q163', dim: 'JP', dir: -1, facet: 'structure', pair: null, text: '我做事喜欢照着已有的步骤来' },
+  { id: 'q164', dim: 'JP', dir: -1, facet: 'structure', pair: null, text: '桌面上的东西，我大致知道在哪儿' },
+  { id: 'q165', dim: 'JP', dir: -1, facet: 'structure', pair: null, text: '采购之前，我往往会先列个清单' },
+  { id: 'q166', dim: 'JP', dir: +1, facet: 'structure', pair: 'C-JP-structure', text: '我的东西放在哪儿比较随性' },
+  { id: 'q167', dim: 'JP', dir: +1, facet: 'structure', pair: null, text: '流程不固定，我也能做得下去' },
+  { id: 'q168', dim: 'JP', dir: +1, facet: 'structure', pair: null, text: '手边的东西常随我随手一放' },
+  { id: 'q169', dim: 'JP', dir: +1, facet: 'structure', pair: null, text: '我很少给自己定固定的做事次序' },
+  { id: 'q170', dim: 'JP', dir: +1, facet: 'structure', pair: null, text: '没有现成的步骤说明，我照样开工' },
+  { id: 'q171', dim: 'JP', dir: -1, facet: 'decisive', pair: 'C-JP-decisive', text: '需要选择时，我倾向于尽快定下来' },
+  { id: 'q172', dim: 'JP', dir: -1, facet: 'decisive', pair: null, text: '定下来的事，我一般不想再改' },
+  { id: 'q173', dim: 'JP', dir: -1, facet: 'decisive', pair: null, text: '只要信息差不多够了，我就拍板' },
+  { id: 'q174', dim: 'JP', dir: -1, facet: 'decisive', pair: null, text: '碰上合适的机会，我会当场应下来' },
+  { id: 'q175', dim: 'JP', dir: -1, facet: 'decisive', pair: null, text: '选项摆出来，我会很快挑定一个' },
+  { id: 'q176', dim: 'JP', dir: +1, facet: 'decisive', pair: 'C-JP-decisive', text: '选择这件事，我不想过早定死' },
+  { id: 'q177', dim: 'JP', dir: +1, facet: 'decisive', pair: null, text: '多留几个选项，我心里更踏实' },
+  { id: 'q178', dim: 'JP', dir: +1, facet: 'decisive', pair: null, text: '做决定前，我愿意让事情再放一放' },
+  { id: 'q179', dim: 'JP', dir: +1, facet: 'decisive', pair: null, text: '有了初步答案，我也不急着交卷' },
+  { id: 'q180', dim: 'JP', dir: +1, facet: 'decisive', pair: null, text: '方向不算唯一时，我乐意再等等看' },
+  { id: 'q181', dim: 'JP', dir: -1, facet: 'timing', pair: 'C-JP-timing', text: '我一般会把任务安排在前面' },
+  { id: 'q182', dim: 'JP', dir: -1, facet: 'timing', pair: null, text: '任务到手后，我习惯分段做完' },
+  { id: 'q183', dim: 'JP', dir: -1, facet: 'timing', pair: null, text: '事情一上手，我就想尽快收尾' },
+  { id: 'q184', dim: 'JP', dir: -1, facet: 'timing', pair: null, text: '待办事项上，我一般先做靠前的' },
+  { id: 'q185', dim: 'JP', dir: -1, facet: 'timing', pair: null, text: '收到任务当天，我常先处理一部分' },
+  { id: 'q186', dim: 'JP', dir: +1, facet: 'timing', pair: 'C-JP-timing', text: '我常常在临近截止时才进入状态' },
+  { id: 'q187', dim: 'JP', dir: +1, facet: 'timing', pair: null, text: '我习惯等到有压力了才开始动手' },
+  { id: 'q188', dim: 'JP', dir: +1, facet: 'timing', pair: null, text: '时间宽裕的时候，我做得会慢一些' },
+  { id: 'q189', dim: 'JP', dir: +1, facet: 'timing', pair: null, text: '我常把事情攒到最后一晚集中处理' },
+  { id: 'q190', dim: 'JP', dir: +1, facet: 'timing', pair: null, text: '截止日期近了，我才真正进入状态' },
+  { id: 'q191', dim: 'JP', dir: -1, facet: 'routine', pair: 'C-JP-routine', text: '我的作息时间一直比较稳定' },
+  { id: 'q192', dim: 'JP', dir: -1, facet: 'routine', pair: null, text: '每天的安排大体上是差不多的' },
+  { id: 'q193', dim: 'JP', dir: -1, facet: 'routine', pair: null, text: '三餐我习惯在固定的时段吃' },
+  { id: 'q194', dim: 'JP', dir: -1, facet: 'routine', pair: null, text: '我习惯按熟悉的节奏安排一天' },
+  { id: 'q195', dim: 'JP', dir: -1, facet: 'routine', pair: null, text: '运动这件事，我会安排在固定时段' },
+  { id: 'q196', dim: 'JP', dir: +1, facet: 'routine', pair: 'C-JP-routine', text: '每天经历的事，差别还挺大' },
+  { id: 'q197', dim: 'JP', dir: +1, facet: 'routine', pair: null, text: '吃饭和睡觉的时间常随当天情况变' },
+  { id: 'q198', dim: 'JP', dir: +1, facet: 'routine', pair: null, text: '把日子过得随意些，我过得挺自在' },
+  { id: 'q199', dim: 'JP', dir: +1, facet: 'routine', pair: null, text: '现有的生活节奏变了，我也适应得来' },
+  { id: 'q200', dim: 'JP', dir: +1, facet: 'routine', pair: null, text: '我很少固定某件事的进行时段' }
 ];
 
 /* 供 Node 测试使用 */

@@ -235,10 +235,19 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
       Number(track['aria-valuenow']) >= 1 && Number(track['aria-valuenow']) <= Number(track['aria-valuemax']) &&
       /已完成/.test(track['aria-valuetext'] || ''),
       JSON.stringify(track));
-    const radioBtns = elements['#options'].children.filter(el => el.attrs && el.attrs['role'] === 'radio');
-    check('选项按钮带 role=radio 与 aria-checked',
-      radioBtns.length >= 4 && radioBtns.some(b => b.attrs['aria-checked'] === 'true'),
+    /* 注意：① 测试用的元素桩不会因 innerHTML='' 清空 children；
+             ② renderQuestion 最后会 append 滑片指示器。
+       所以先按 role=radio 过滤，再取最后渲染的 5 个。 */
+    const radioBtns = elements['#options'].children
+      .filter(el => el.attrs && el.attrs['role'] === 'radio').slice(-5);
+    check('选项按钮带 role=radio 与 aria-checked（5 个选项）',
+      radioBtns.length === 5 && radioBtns.every(b => b.attrs && b.attrs['role'] === 'radio') &&
+      radioBtns.some(b => b.attrs['aria-checked'] === 'true'),
       'radio=' + radioBtns.length);
+    check('第 3 个选项为"不确定"且带 data-val=0',
+      radioBtns[2] && radioBtns[2].attrs['data-val'] === '0' &&
+      /不确定/.test(radioBtns[2].innerHTML || radioBtns[2].textContent || ''),
+      radioBtns[2] ? JSON.stringify(radioBtns[2].attrs) + ' ' + String(radioBtns[2].innerHTML).slice(0, 40) : 'null');
     /* ---- 报告导出（长图 / 打印） ---- */
     document.body.id = 'page-result';
     api.init();
@@ -275,8 +284,9 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
     };
 
     // A. 只用「同意 / 不同意」——真人最常见的作答方式（旧逻辑必出彩蛋，回归点）
+    //    5 点量表下的按键：1=强同意 2=同意 3=不确定 4=不同意 5=强不同意
     resetStore();
-    answerAll(q => (q.dir < 0 ? '2' : '3'));
+    answerAll(q => (q.dir < 0 ? '2' : '4'));
     let storedRes = JSON.parse(store['mbti_result'] || 'null');
     check('完整作答已记录 64 题',
       Object.keys(JSON.parse(store['mbti_answers'] || '{}')).length === deepSet.length,
@@ -287,16 +297,64 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
       storedRes ? storedRes.letters : 'null');
     check('温和一致作答四维均非模糊', !!storedRes && DIMS.every(d => storedRes.dims[d].amb === false),
       storedRes ? DIMS.map(d => d + ':' + storedRes.dims[d].amb).join(' ') : 'null');
-    check('温和一致作答落点为 33%（2:1 倾向）', !!storedRes && storedRes.dims.EI.pctB === 33,
+    check('温和一致作答落点为 33%（1:-1 均值差）', !!storedRes && storedRes.dims.EI.pctB === 33,
       storedRes ? String(storedRes.dims.EI.pctB) : 'null');
 
     // B. 极端一致作答
     resetStore();
-    answerAll(q => (q.dir < 0 ? '1' : '4'));
+    answerAll(q => (q.dir < 0 ? '1' : '5'));
     storedRes = JSON.parse(store['mbti_result'] || 'null');
     check('极端一致作答得到类型且置信度更高',
       !!storedRes && storedRes.easterEgg === false && storedRes.overallConfidence > 60,
       storedRes ? storedRes.letters + ' ' + storedRes.overallConfidence + '%' : 'null');
+
+    // D. 全程「不确定」→ 不计分（四维落点居中 50%、置信度 0），但进度照常记为已答
+    resetStore();
+    answerAll(() => '3');
+    storedRes = JSON.parse(store['mbti_result'] || 'null');
+    const ansD = JSON.parse(store['mbti_answers'] || '{}');
+    check('不确定也计入已答（进度不倒退）', Object.keys(ansD).length === deepSet.length,
+      Object.keys(ansD).length + '/' + deepSet.length);
+    check('不确定不参与计分：四维落点均为 50%',
+      !!storedRes && DIMS.every(d => storedRes.dims[d].pctB === 50),
+      storedRes ? DIMS.map(d => d + ':' + storedRes.dims[d].pctB).join(' ') : 'null');
+    check('不确定降低有效覆盖：置信度为 0',
+      !!storedRes && storedRes.overallConfidence === 0 &&
+      DIMS.every(d => storedRes.dims[d].scored === 0 && storedRes.dims[d].neutral === 16),
+      storedRes ? storedRes.overallConfidence + '% scored=' + storedRes.dims.EI.scored +
+        ' neutral=' + storedRes.dims.EI.neutral : 'null');
+    check('不确定不计入一致性矛盾', !!storedRes && storedRes.consistencyIssues === 0,
+      storedRes ? String(storedRes.consistencyIssues) : 'null');
+
+    // E. 部分「不确定」：对称地各去掉一半题，字母判定不应改变（不确定不参与计分）
+    resetStore();
+    const keyFor2 = q => (q.dir < 0 ? '1' : '5');
+    answerAll(keyFor2);
+    const fullRes = JSON.parse(store['mbti_result'] || 'null');
+    resetStore();
+    (() => {
+      document.body.id = 'page-test';
+      api.init();
+      const kd5 = docListeners.keydown || [];
+      const counts = {};
+      for (let i = 0; i < deepSet.length; i++) {
+        const idx = Number(JSON.parse(store['mbti_current'] || '0')) || i;
+        const q = deepSet[idx] || deepSet[i];
+        /* 每个维度每一极都隔一题选"不确定"→ 两极被对称削减，均值差不受偏斜影响 */
+        const k = q.dim + (q.dir < 0 ? 'A' : 'B');
+        counts[k] = (counts[k] || 0) + 1;
+        kd5.forEach(fn => fn({ key: (counts[k] % 2 === 0 ? '3' : keyFor2(q)), target: null }));
+        if (i < deepSet.length - 1) fire(elements['#nextBtn'], 'click');
+      }
+      fire(elements['#nextBtn'], 'click');
+    })();
+    const mixedRes = JSON.parse(store['mbti_result'] || 'null');
+    check('对称选一半不确定 → 字母判定与全答一致（不确定不改变分数方向）',
+      !!mixedRes && !!fullRes && mixedRes.letters === fullRes.letters,
+      (mixedRes ? mixedRes.letters : 'null') + ' vs ' + (fullRes ? fullRes.letters : 'null'));
+    check('选了一半不确定 → 置信度低于全答（如实反映有效题量）',
+      !!mixedRes && !!fullRes && mixedRes.overallConfidence < fullRes.overallConfidence,
+      (mixedRes ? mixedRes.overallConfidence : '?') + '% vs ' + (fullRes ? fullRes.overallConfidence : '?') + '%');
 
     // C. 全程「同意」（默认同意定势）→ 配平计分应判为模糊，并显示带四维落点的彩蛋页
     resetStore();

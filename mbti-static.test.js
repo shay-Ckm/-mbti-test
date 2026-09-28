@@ -129,11 +129,8 @@ console.log('MBTI 静态契约测试\n');
   const qbank = require('./data/questions.js');
   const profile = require('./data/profile.js').TYPE_PROFILE;
 
-  check('题库共 64 题（v3）', qbank.QUESTIONS.length === 64, String(qbank.QUESTIONS.length));
-  check('题库版本号 ≥2', qbank.BANK_VERSION >= 2, String(qbank.BANK_VERSION));
-
-  const quick = qbank.QUESTIONS.filter(q => q.quick);
-  check('快速档共 24 题', quick.length === 24, String(quick.length));
+  check('题库共 200 题（v4）', qbank.QUESTIONS.length === 200, String(qbank.QUESTIONS.length));
+  check('题库版本号 ≥ 4', qbank.BANK_VERSION >= 4, String(qbank.BANK_VERSION));
 
   const dims = ['EI', 'SN', 'TF', 'JP'];
   check('题库维度仅为 EI/SN/TF/JP', qbank.QUESTIONS.every(q => dims.indexOf(q.dim) >= 0));
@@ -141,16 +138,22 @@ console.log('MBTI 静态契约测试\n');
     const items = qbank.QUESTIONS.filter(q => q.dim === d);
     const first = items.filter(q => q.dir < 0).length;
     const second = items.filter(q => q.dir > 0).length;
-    check('深度档 ' + d + ' 16 题且极性 8:8', items.length === 16 && first === 8 && second === 8,
+    check(d + ' 共 50 题且极性 25:25', items.length === 50 && first === 25 && second === 25,
       items.length + ' 题 / ' + first + ':' + second);
-    const q = quick.filter(x => x.dim === d);
-    check('快速档 ' + d + ' 6 题且极性 3:3', q.length === 6 && q.filter(x => x.dir < 0).length === 3,
-      q.length + ' 题');
+    /* 5 个内容侧面，每个侧面 10 题且两极各 5 题 */
+    const facets = {};
+    items.forEach(q => { (facets[q.facet] = facets[q.facet] || []).push(q); });
+    const fKeys = Object.keys(facets);
+    check(d + ' 含 5 个内容侧面', fKeys.length === 5, fKeys.join(', '));
+    check(d + ' 每个侧面 10 题且两极 5:5',
+      fKeys.every(f => facets[f].length === 10 &&
+        facets[f].filter(q => q.dir < 0).length === 5 && facets[f].filter(q => q.dir > 0).length === 5),
+      fKeys.map(f => f + ':' + facets[f].length).join(', '));
   });
 
-  check('每题字段完整（id/dim/dir/facet/quick/text）',
+  check('每题字段完整（id/dim/dir/facet/pair/text）',
     qbank.QUESTIONS.every(q => q.id && q.dim && (q.dir === 1 || q.dir === -1) &&
-      q.facet && typeof q.quick === 'boolean' && typeof q.text === 'string' && q.text.length > 6));
+      q.facet && ('pair' in q) && typeof q.text === 'string' && q.text.length >= 12 && q.text.length <= 24));
   check('题目 id 唯一', new Set(qbank.QUESTIONS.map(q => q.id)).size === qbank.QUESTIONS.length,
     new Set(qbank.QUESTIONS.map(q => q.id)).size + '/' + qbank.QUESTIONS.length);
   check('题干无对比句式（而不是/比起/比…更重要）',
@@ -158,9 +161,15 @@ console.log('MBTI 静态契约测试\n');
 
   const pairs = {};
   qbank.QUESTIONS.filter(q => q.pair).forEach(q => { (pairs[q.pair] = pairs[q.pair] || []).push(q); });
-  check('一致性配对题成组（每组 2 题）',
-    Object.keys(pairs).length >= 2 && Object.keys(pairs).every(k => pairs[k].length === 2),
-    Object.keys(pairs).map(k => k + ':' + pairs[k].length).join(', '));
+  check('镜像题成组（20 组 · 每组 2 题 · 同维反向）',
+    Object.keys(pairs).length === 20 && Object.keys(pairs).every(k =>
+      pairs[k].length === 2 && pairs[k][0].dim === pairs[k][1].dim && pairs[k][0].dir !== pairs[k][1].dir),
+    Object.keys(pairs).length + ' 组');
+  check('每个内容侧面各有 1 组镜像题',
+    dims.every(d => {
+      const f = [...new Set(qbank.QUESTIONS.filter(q => q.dim === d).map(q => q.facet))];
+      return f.every(name => Object.keys(pairs).some(k => k.indexOf(name) >= 0));
+    }));
 
   const pKeys = Object.keys(profile);
   check('画像数据覆盖 16 型', pKeys.length === 16, String(pKeys.length));

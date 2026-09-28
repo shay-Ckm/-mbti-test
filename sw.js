@@ -10,7 +10,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE_VERSION = 'mbti-v4.5.0';
+const CACHE_VERSION = 'mbti-v5.0.0';
 const CACHE_NAME = CACHE_VERSION;
 
 /* 预缓存清单（路径必须真实存在，静态契约测试会逐条校验） */
@@ -21,11 +21,11 @@ const PRECACHE = [
   './result.html',
   './relation.html',
   './404.html',
-  './style.css?v=4.5.0',
-  './script.js?v=4.5.0',
-  './data/questions.js?v=4.5.0',
-  './data/profile.js?v=4.5.0',
-  './assets/fonts/fonts.css?v=4.5.0',
+  './style.css?v=5.0.0',
+  './script.js?v=5.0.0',
+  './data/questions.js?v=5.0.0',
+  './data/profile.js?v=5.0.0',
+  './assets/fonts/fonts.css?v=5.0.0',
   './assets/fonts/inter-var.woff2',
   './assets/icon-192.png',
   './assets/icon-512.png',

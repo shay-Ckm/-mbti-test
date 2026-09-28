@@ -21,19 +21,21 @@ var STORAGE_KEYS = {
   completions: 'mbti_completions',
   version: 'mbti_bank_version',   // 题库版本，用于迁移
   history: 'mbti_history',        // 历史结果（最近 10 次）
-  checklist: 'mbti_checklist'     // 成长清单勾选状态
+  checklist: 'mbti_checklist',    // 成长清单勾选状态
+  seen: 'mbti_seen'               // 最近出现过的题 id（下次抽题优先换一批）
 };
 
-/* 档位配置：两档共用同一题库，仅题量与时长不同 */
+/* 档位配置：两档共用同一题库（200 题），每次开测按维度等比例随机抽题
+   perDim = 每个维度抽多少题（必须为偶数，保证该维两极 1:1 平衡） */
 var MODES = {
-  quick: { key: 'quick', label: '快速测试', count: 24, time: '约 5 分钟',     desc: '24 题精选 · 快速得到结果，适合分享' },
-  deep:  { key: 'deep',  label: '深度测试', count: 64, time: '约 12-14 分钟', desc: '64 题全覆盖 · 精度更高，含侧面一致性与镜像题校验' }
+  quick: { key: 'quick', label: '快速测试', count: 24, perDim: 6,  time: '约 5 分钟',     desc: '24 题 · 每维随机 6 题（极性 3:3）· 快速得到结果，适合分享' },
+  deep:  { key: 'deep',  label: '深度测试', count: 64, perDim: 16, time: '约 12-14 分钟', desc: '64 题 · 每维随机 16 题（极性 8:8）· 覆盖更全，含侧面一致性与镜像题校验' }
 };
 var DEFAULT_MODE = 'deep';
 
 /* 构建版本（由 tools/bump-version.js 统一更新）
    用途：页脚/顶部展示，便于确认线上跑的是哪一版，排查缓存问题 */
-var BUILD = '4.5.0';
+var BUILD = '5.0.0';
 
 /* 把版本号写到页面的 .build-stamp 上，并挂到 window 便于排查 */
 function stampBuild() {
@@ -50,10 +52,13 @@ function bankVersion() {
 }
 function modeConf(key) { return MODES[key] || MODES[DEFAULT_MODE]; }
 
-/* 作答量表：4 点迫选（无中立），强同意=3 … 强不同意=-3 */
+/* 作答量表：5 点（中间为"不确定"）
+   注意：不确定（val = 0）**不参与计分**——它不计入任一极的均值，
+   只降低该维度的有效覆盖度（即拉低置信度），因此不会把结果往中间拽。 */
 var SCALE = [
   { label: '强同意', tag: '完全符合', val: 3 },
   { label: '同意',   tag: '基本符合', val: 1 },
+  { label: '不确定', tag: '看情况', val: 0 },
   { label: '不同意', tag: '不太符合', val: -1 },
   { label: '强不同意', tag: '完全不符', val: -3 }
 ];
@@ -458,17 +463,62 @@ function shuffle(arr) {
   return arr;
 }
 
+/* ================= 选题：每次开测按维度等比例随机抽题 =================
+   - 每维抽 perDim 题（偶数），两极各一半 → 该维极性严格平衡；
+   - 名额按内容侧面(facet)尽量均分 → 覆盖面不会塌缩到某几个侧面；
+   - 优先抽"最近没出现过的题"，避免连着两次测到同一批；
+   - 抽好的题序会存进 mbti_set，刷新/续答时沿用同一套题。 */
+
+/* 把 total 个名额尽量平均分给 buckets 个桶（余数给前几个桶） */
+function distribute(total, buckets) {
+  var base = Math.floor(total / buckets), rest = total % buckets, out = [];
+  for (var i = 0; i < buckets; i++) out.push(base + (i < rest ? 1 : 0));
+  return out;
+}
+
+/* 最近两轮出现过的题 id（用于"换一批题"） */
+function seenIds() {
+  var v = getStore(STORAGE_KEYS.seen);
+  return (v && v.length) ? v : [];
+}
+function markSeen(ids) {
+  setStore(STORAGE_KEYS.seen, seenIds().concat(ids || []).slice(-120));
+}
+
+/* 某一维随机抽 n 题（n 为偶数）：facet 均分 + 两极 1:1 */
+function sampleDimItems(dim, n) {
+  var bank = questionBank();
+  var seen = seenIds();
+  var facets = [];
+  bank.forEach(function (q) {
+    if (q.dim === dim && facets.indexOf(q.facet) < 0) facets.push(q.facet);
+  });
+  shuffle(facets);
+
+  /* 未出现过的题排在前面 */
+  function prep(list) {
+    var fresh = [], used = [];
+    shuffle(list).forEach(function (q) { (seen.indexOf(q.id) >= 0 ? used : fresh).push(q); });
+    return fresh.concat(used);
+  }
+  var halfA = Math.ceil(n / 2), halfB = n - halfA;
+  var quotaA = distribute(halfA, facets.length);
+  var quotaB = distribute(halfB, facets.length);
+  var picks = [];
+  facets.forEach(function (f, i) {
+    var poolA = prep(bank.filter(function (q) { return q.dim === dim && q.facet === f && q.dir < 0; }));
+    var poolB = prep(bank.filter(function (q) { return q.dim === dim && q.facet === f && q.dir > 0; }));
+    picks = picks.concat(poolA.slice(0, quotaA[i]), poolB.slice(0, quotaB[i]));
+  });
+  return picks;
+}
+
 function buildQuestionSet(modeKey) {
   var conf = modeConf(modeKey);
-  var bank = questionBank();
-  /* 每维取出本档题目并分别打乱 */
   var queues = DIMS.map(function (dim) {
-    return shuffle(bank.filter(function (q) {
-      return q.dim === dim && (conf.key === 'quick' ? q.quick : true);
-    }));
+    return shuffle(sampleDimItems(dim, conf.perDim));
   });
-  /* 轮转交织出题：避免"整维连续 + 同极连续"带来的顺序与启动效应
-     （v2 只有深度档打乱，且同维所有首字母极题目连在一起） */
+  /* 轮转交织出题：避免"整维连续 + 同极连续"带来的顺序与启动效应 */
   var out = [];
   var lastDimIdx = -1, lastFacet = null, lastDir = 0;
   var totalCount = queues.reduce(function (s, q) { return s + q.length; }, 0);
@@ -496,30 +546,28 @@ function buildQuestionSet(modeKey) {
   return out;
 }
 
-/* 某一档实际包含的题目（确定性：用于计分与置信度的分母） */
-function modeItems(modeKey) {
-  var conf = modeConf(modeKey);
-  return questionBank().filter(function (q) {
-    return conf.key === 'quick' ? q.quick : true;
-  });
-}
+/* 某一档每维抽题量（两档共用 200 题题库，靠 perDim 区分长度） */
+function modePerDim(modeKey) { return modeConf(modeKey).perDim; }
 
 /* ================= 计分核心（纯函数，可测试） =================
-   输入：answers —— { qid: -3|-1|1|3 }（未答的键缺省或为 null）
+   输入：answers —— { qid: -3|-1|0|1|3 }（0 = 不确定，不计分；未答缺省或 null）
         mode    —— 'quick' | 'deep'
+        setIds  —— 本档实际抽到的题 id 数组（用于确定分母；缺省则用已作答的题）
    输出：{
      mode, modeLabel, bankVersion, letters,
-     dims: { EI: {A,B,score,pctB,letter,strength,amb,confidence,answered,total,label}, ... },
+     dims: { EI: {A,B,score,pctB,letter,strength,amb,confidence,answered,scored,neutral,total,label}, ... },
      answered, consistencyIssues, overallConfidence,
      easterEgg（四维全部倾向模糊）, type
    }                                                          */
-function computeResult(answers, mode) {
+function computeResult(answers, mode, setIds) {
   var conf = modeConf(mode);
-  /* 关键：分母必须是"本档实际出现的题目"。
-     v2 用全库题数当分母，快速档答满 24 题时 coverage 仍只有 6/15=0.4，
-     导致快速档置信度被硬压到 ~34%（且结果页显示 6/15 题）。 */
-  var set = modeItems(conf.key);
   answers = answers || {};
+  var bank = questionBank();
+  var byId = {};
+  bank.forEach(function (q) { byId[q.id] = q; });
+  /* 题集：优先用本档实际抽到的题（页面会把 mbti_set 传进来）；
+     缺省时退回"已作答的题"，保证旧数据也能计分。 */
+  var ids = (setIds && setIds.length) ? setIds : Object.keys(answers);
   var res = {
     mode: conf.key, modeLabel: conf.label, bankVersion: bankVersion(),
     letters: '', dims: {}, easterEgg: false, type: null,
@@ -531,15 +579,22 @@ function computeResult(answers, mode) {
   DIMS.forEach(function (dim) {
     var A = dim[0];          // 首字母极（E/S/T/J）
     var B = dim[1];          // 次字母极（I/N/F/P）
-    var items = set.filter(function (q) { return q.dim === dim; });
-    var total = items.length;
-    var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0;
+    var items = [];
+    ids.forEach(function (id) {
+      var q = byId[id];
+      if (q && q.dim === dim) items.push(q);
+    });
+    var total = conf.perDim;               // 本档每维抽题量（恒定：6 或 16）
+    var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0, neutral = 0;
     var facetMap = {};
 
     items.forEach(function (q) {
       var r = answers[q.id];
       if (r === null || r === undefined) return;
       answered++;
+      /* "不确定"（0）：只记录，不计入任何一极的均值 → 不影响得分，
+         但会降低有效覆盖度（scored/total），从而如实拉低置信度。 */
+      if (r === 0) { neutral++; return; }
       if (q.dir > 0) { sumB += r; cntB++; } else { sumA += r; cntA++; }
       var f = facetMap[q.facet] || (facetMap[q.facet] = { sumA: 0, nA: 0, sumB: 0, nB: 0 });
       if (q.dir > 0) { f.sumB += r; f.nB++; } else { f.sumA += r; f.nA++; }
@@ -570,10 +625,12 @@ function computeResult(answers, mode) {
     var facetAgreement = facets.length ? Math.max(agreeA, agreeB) / facets.length : 0;
 
     /* 置信度（可解释的四因子模型）：
-       覆盖率 × 题量饱和因子 × 侧面一致度 × 倾向强度
+       有效覆盖率 × 题量饱和因子 × 侧面一致度 × 倾向强度
+       - 有效覆盖率 = 实际计分题数 / 本档抽题量（选"不确定"会拉低它）
        - 题量饱和：1-exp(-n/8) —— 6 题≈0.53、16 题≈0.87（题越多越稳）
-       - 侧面一致度：4 个侧面里指向同端的比例（分歧大 = 结果不稳） */
-    var coverage = total ? Math.min(1, answered / total) : 0;
+       - 侧面一致度：各侧面里指向同端的比例（分歧大 = 结果不稳） */
+    var scored = cntA + cntB;
+    var coverage = total ? Math.min(1, scored / total) : 0;
     var sat = 1 - Math.exp(-total / 8);
     var strengthRate = Math.min(1, strength / 70);
     var confidence = Math.round(100 * coverage * sat * (0.45 + 0.55 * strengthRate) *
@@ -583,23 +640,26 @@ function computeResult(answers, mode) {
     if (!amb) allAmb = false;
     res.dims[dim] = {
       A: A, B: B, score: score, pctB: pctB, letter: letter, strength: strength,
-      amb: amb, confidence: confidence, answered: answered, total: total,
+      amb: amb, confidence: confidence, answered: answered, scored: scored, neutral: neutral, total: total,
       facets: facets, facetAgreement: facetAgreement,
       facetSummary: (agreeB >= agreeA ? agreeB : agreeA) + '/' + facets.length,
       label: amb ? (A + '/' + B) : letter
     };
     res.letters += letter;
     res.answered += answered;
+    res.neutral = (res.neutral || 0) + neutral;
     confSum += confidence;
   });
 
   // 一致性检查：配对题（语义互为镜像的两题）若被同时强烈认同/同时强烈否认，
   // 说明作答在该构念上自相矛盾（poles 一正一负即矛盾）
   var pairs = {};
-  set.forEach(function (q) {
+  var allItems = [];
+  ids.forEach(function (id) { if (byId[id]) allItems.push(byId[id]); });
+  allItems.forEach(function (q) {
     if (!q.pair) return;
     var r = answers[q.id];
-    if (r === null || r === undefined) return;
+    if (r === null || r === undefined || r === 0) return;   // "不确定"不参与一致性判定
     (pairs[q.pair] = pairs[q.pair] || []).push({ dir: q.dir, r: r });
   });
   Object.keys(pairs).forEach(function (k) {
@@ -927,7 +987,7 @@ function bindTestEvents() {
   // 键盘快捷键：1-4 选择选项，← / → 切题
   document.addEventListener('keydown', function (e) {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-    if (e.key >= '1' && e.key <= '4') {
+    if (e.key >= '1' && e.key <= String(SCALE.length)) {
       var s = SCALE[Number(e.key) - 1];
       if (s) selectOption(s.val);
     } else if (e.key === 'ArrowLeft') {
@@ -1005,7 +1065,8 @@ function positionIndicator() {
   var ind = testState.indicator;
   if (!opts || !ind) return;
   var sel = opts.querySelector('.opt.selected');
-  if (!sel) { ind.style.opacity = '0'; return; }
+  /* 选了"不确定"时不显示滑片：它不是一次表态，不该有类型色高亮 */
+  if (!sel || sel.getAttribute('data-val') === '0') { ind.style.opacity = '0'; return; }
   var c = opts.getBoundingClientRect();
   var b = sel.getBoundingClientRect();
   ind.style.opacity = '1';
@@ -1121,8 +1182,9 @@ function bubbleMsg(done, total) {
 }
 
 function finishTest() {
-  var res = computeResult(testState.answers, testState.mode);
+  var res = computeResult(testState.answers, testState.mode, testState.set);
   setStore(STORAGE_KEYS.result, res);
+  markSeen(testState.set);          // 记录本次用过的题，下次开测优先换一批
   pushHistory(res);
   navigate('result.html');
 }
@@ -1130,7 +1192,9 @@ function finishTest() {
 /* ---------- 雷达图（Canvas） ---------- */
 /* 实时百分比必须按"当前档位"计算（v3 修正：此前漏传档位，快速档会按深度档分母算） */
 function pctFromAnswers(answers) {
-  var temp = computeResult(answers, (typeof testState !== 'undefined' && testState.mode) || DEFAULT_MODE);
+  var temp = computeResult(answers,
+    (typeof testState !== 'undefined' && testState.mode) || DEFAULT_MODE,
+    (typeof testState !== 'undefined' && testState.set) || null);
   return DIMS.map(function (d) { return temp.dims[d].pctB; });
 }
 
@@ -1258,7 +1322,7 @@ function initResult() {
 
   var res = getStore(STORAGE_KEYS.result);
   var answers = getStore(STORAGE_KEYS.answers);
-  if (!res && answers) res = computeResult(answers, getStore(STORAGE_KEYS.mode));
+  if (!res && answers) res = computeResult(answers, getStore(STORAGE_KEYS.mode), getStore(STORAGE_KEYS.set));
   if (!res || answeredCount(answers || {}) === 0) {
     location.href = 'index.html';
     return;
@@ -2563,7 +2627,10 @@ if (typeof module !== 'undefined' && module.exports) {
     bankVersion: bankVersion,
     modeConf: modeConf,
     buildQuestionSet: buildQuestionSet,
-    modeItems: modeItems,
+    modeItems: function () { return questionBank(); },
+    modePerDim: modePerDim,
+    sampleDimItems: sampleDimItems,
+    distribute: distribute,
     computeResult: computeResult,
     answeredCount: answeredCount,
     computeRelation: computeRelation,

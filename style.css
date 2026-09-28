@@ -382,7 +382,7 @@ img { max-width:100%; height:auto; }
   font-size:clamp(1.24rem,2.3vw,1.62rem); font-weight:700; line-height:1.62;
   color:var(--text-1); margin:var(--sp-4) 0 var(--sp-5); letter-spacing:.01em;
 }
-.options { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.options { position:relative; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px; }
 .opt {
   position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:3px;
   padding:16px 18px; border-radius:var(--r-md); cursor:pointer; text-align:left;
@@ -400,6 +400,16 @@ img { max-width:100%; height:auto; }
   background:var(--paper-3); color:var(--text-3); font-size:.72rem; font-weight:800;
 }
 .opt.selected .opt-key { background:var(--tcolor); color:#fff; }
+/* "不确定"：中性选项 —— 虚线边、不参与计分；选中时用灰色而非类型色，
+   明确表达"这一题没有偏好"，不让它看起来像一次表态。 */
+.opt[data-val="0"] { border-style:dashed; }
+.opt[data-val="0"].selected {
+  background:rgba(120,128,160,.18);
+  border-color:rgba(120,128,160,.60);
+  box-shadow:none;
+}
+.opt[data-val="0"].selected .opt-tag { color:inherit; }
+.opt[data-val="0"].selected .opt-key { background:rgba(120,128,160,.85); color:#fff; }
 .opt-indicator {
   position:absolute; z-index:0; border-radius:var(--r-md); pointer-events:none;
   background:var(--tcolor-soft); border:1.5px solid var(--tcolor);
@@ -811,6 +821,9 @@ body.theme-glass :is(.opt.selected) {
   box-shadow:0 0 0 3px color-mix(in srgb, var(--tcolor) 22%, transparent);
 }
 body.theme-glass :is(.opt-key) { background:rgba(255,255,255,.12); color:rgba(255,255,255,.72); }
+body.theme-glass :is(.opt[data-val="0"].selected) {
+  background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.45); box-shadow:none;
+}
 body.theme-glass :is(.opt.selected .opt-key) { background:var(--tcolor); color:#FFFFFF; }
 body.theme-glass :is(.opt.selected .opt-tag) { color:rgba(255,255,255,.86); }
 body.theme-glass :is(.opt-indicator) {

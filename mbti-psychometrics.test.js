@@ -21,7 +21,7 @@ global.BANK_VERSION = qbank.BANK_VERSION;
 global.TYPE_PROFILE = require('./data/profile.js').TYPE_PROFILE;
 
 const api = require('./script.js');
-const { computeResult, questionBank } = api;
+const { computeResult, questionBank, buildQuestionSet } = api;
 const DIMS = api.DIMS;
 
 let pass = 0, fail = 0;
@@ -37,10 +37,11 @@ function makeRnd(seed) {
 }
 const sigmoid = x => 1 / (1 + Math.exp(-x));
 
-/* 生成作答：theta = {EI,SN,TF,JP}；k 区分度；acq 默认同意倾向(0~1) */
-function respond(theta, rnd, k, acq) {
+/* 生成作答：theta = {EI,SN,TF,JP}；k 区分度；acq 默认同意倾向(0~1)
+   set = 本次实际抽到的题（不给则答全库，兼容旧用法） */
+function respond(theta, rnd, k, acq, set) {
   const a = {};
-  questionBank().forEach(q => {
+  (set || questionBank()).forEach(q => {
     const towardSecond = q.dir > 0 ? 1 : -1;
     const v = (theta[q.dim] || 0) * towardSecond;          // ∈[-3,3]，正=倾向次字母极
     const pAgree = (1 - acq) * sigmoid(k * v / 1.6) + acq;
@@ -80,7 +81,9 @@ const table = {};
         const sign = rnd() < 0.5 ? -1 : 1;
         theta[d] = sign * level;
       });
-      const res = computeResult(respond(theta, rnd, K, 0), mode);
+      /* 每位被试随机抽一套题（与真实流程一致：每维等比例随机抽题） */
+      const set = buildQuestionSet(mode);
+      const res = computeResult(respond(theta, rnd, K, 0, set), mode, set.map(q => q.id));
       const hit = dimsCorrect(res, theta);
       dimHits += hit; dimTotal += 4;
       if (hit === 4) exact++;
@@ -114,8 +117,14 @@ check('深度档 强偏好（|θ|=3）四字母全对率 ≥90%', at('deep', 3).
 check('深度档 中等偏好（|θ|=2）逐维准确率 ≥88%', at('deep', 2).dimAcc >= 0.88, (at('deep', 2).dimAcc * 100).toFixed(1) + '%');
 check('深度档 强偏好（|θ|=2.5）四字母全对率 ≥80%', at('deep', 2.5).exactAcc >= 0.8, (at('deep', 2.5).exactAcc * 100).toFixed(1) + '%');
 check('快速档 强偏好（|θ|=3）逐维准确率 ≥88%', at('quick', 3).dimAcc >= 0.88, (at('quick', 3).dimAcc * 100).toFixed(1) + '%');
-check('深度档准确率高于快速档（|θ|=2）', at('deep', 2).dimAcc > at('quick', 2).dimAcc,
-  (at('deep', 2).dimAcc * 100).toFixed(1) + '% vs ' + (at('quick', 2).dimAcc * 100).toFixed(1) + '%');
+check('快速档 中等偏好（|θ|=1）逐维准确率 ≥90%', at('quick', 1).dimAcc >= 0.9, (at('quick', 1).dimAcc * 100).toFixed(1) + '%');
+check('深度档准确率高于快速档（|θ|=1）', at('deep', 1).dimAcc > at('quick', 1).dimAcc,
+  (at('deep', 1).dimAcc * 100).toFixed(1) + '% vs ' + (at('quick', 1).dimAcc * 100).toFixed(1) + '%');
+check('深度档四字母全对率高于快速档（|θ|=1）', at('deep', 1).exactAcc > at('quick', 1).exactAcc,
+  (at('deep', 1).exactAcc * 100).toFixed(1) + '% vs ' + (at('quick', 1).exactAcc * 100).toFixed(1) + '%');
+check('深度档模糊判定更保守（|θ|=0.5 时深度档模糊率更高）',
+  at('deep', 0.5).ambRate > at('quick', 0.5).ambRate,
+  (at('deep', 0.5).ambRate * 100).toFixed(1) + '% vs ' + (at('quick', 0.5).ambRate * 100).toFixed(1) + '%');
 check('弱偏好（|θ|≤0.5）多数被诚实标为模糊（≥60%）', at('deep', 0).ambRate >= 0.6 && at('deep', 0.5).ambRate >= 0.5,
   at('deep', 0).ambRate.toFixed(2) + ' / ' + at('deep', 0.5).ambRate.toFixed(2));
 check('无偏好（|θ|=0）时模糊比例 > 强偏好时（区分度体现）',
@@ -123,12 +132,12 @@ check('无偏好（|θ|=0）时模糊比例 > 强偏好时（区分度体现）'
 
 /* ---------- 2. 模型内内部一致性 Cronbach's α ---------- */
 function alpha(mode, rnd, n) {
-  const set = mode === 'quick' ? questionBank().filter(q => q.quick) : questionBank();
+  const set = buildQuestionSet(mode);      // 该档实际抽到的题（固定一套，跨被试可比）
   const rows = [];
   for (let i = 0; i < n; i++) {
     const theta = {};
     DIMS.forEach(d => { theta[d] = (rnd() * 6 - 3); });     // θ ~ U(-3,3)
-    const a = respond(theta, rnd, K, 0);
+    const a = respond(theta, rnd, K, 0, set);
     /* 关键方向化：所有题目转为"越大越偏次字母极"，使同一维题目测同一方向 */
     rows.push(set.map(q => a[q.id] * (q.dir > 0 ? 1 : -1)));
   }
