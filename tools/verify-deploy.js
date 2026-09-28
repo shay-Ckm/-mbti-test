@@ -181,9 +181,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const bank = await fetchUrl(SITE + 'data/questions.js');
     const txt = bank.buf.toString('utf8');
     const items = (txt.match(/dim: '/g) || []).length;
-    check('线上题库为 v3（BANK_VERSION = 3）', bank.status === 200 && /var BANK_VERSION = 3;/.test(txt),
+    check('线上题库为 v4（BANK_VERSION = 4）', bank.status === 200 && /var BANK_VERSION = 4;/.test(txt),
       'HTTP ' + bank.status);
-    check('线上题量为 64 题', items === 64, items + ' 题');
+    check('线上题量为 200 题', items === 200, items + ' 题');
+    check('线上题库每维 50 题', (txt.match(/dim: 'EI'/g) || []).length === 50 &&
+      (txt.match(/dim: 'JP'/g) || []).length === 50,
+      (txt.match(/dim: 'EI'/g) || []).length + '/' + (txt.match(/dim: 'JP'/g) || []).length);
   }
 
   /* 二进制资源签名 */
