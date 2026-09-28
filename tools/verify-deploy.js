@@ -161,7 +161,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   /* 4. 线上内容标记 */
   const pages = [
     ['index.html', '首页', [['双档位选择', /id="modeCards"/], ['关系匹配入口', /relation\.html/], ['本地字体', /assets\/fonts\/fonts\.css/], ['分享图元信息', /og:image/]]],
-    ['test.html', '答题页', [['进度条 ARIA', /role="progressbar"/], ['脚本 defer', /script\.js" defer/]]],
+    ['test.html', '答题页', [['进度条 ARIA', /role="progressbar"/], ['脚本 defer', /script\.js\?v=[\d.]+" defer/],
+      ['样式带版本号（缓存击穿）', /style\.css\?v=[\d.]+/]]],
     ['result.html', '结果页', [['报告长图按钮', /reportImgBtn/], ['类型档案入口', /typePageLink/], ['打印按钮', /printBtn/]]],
     ['relation.html', '关系匹配页', [['矩阵容器', /id="relMatrix"/], ['选择槽', /relSlotA/]]],
     ['types/intj.html', '类型百科页', [['类型内容', /战略家/], ['结构化数据', /application\/ld\+json/]]],
