@@ -187,6 +187,11 @@ img { max-width:100%; height:auto; }
 .home-link:hover { transform:translateY(-2px); background:var(--glass-2); color:#fff; }
 .home-stats { font-size:.86rem; color:var(--on-dark-2); margin:0; }
 .home-stats b { color:#fff; font-variant-numeric:tabular-nums; }
+/* 构建版本标记（便于确认线上版本，排查缓存问题） */
+.build-stamp {
+  font-size:.72rem; font-weight:600; letter-spacing:.06em;
+  color:var(--on-dark-3); opacity:.7; font-variant-numeric:tabular-nums;
+}
 
 /* ============================================================
    5. 按钮 / 胶囊 / 标签

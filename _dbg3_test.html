@@ -20,8 +20,8 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://shay-ckm.github.io/-mbti-test/assets/og-image.png">
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/inter-var.woff2" crossorigin>
-  <link rel="stylesheet" href="assets/fonts/fonts.css?v=4.5.0">
-  <link rel="stylesheet" href="style.css?v=4.5.0">
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body id="page-test" class="theme-glass">
   <a class="skip-link" href="#main">跳到主内容</a>
@@ -37,7 +37,6 @@
       <a class="logo-mini" href="index.html">✦ 人格实验室</a>
       <span class="mode-badge" id="modeBadge">深度测试 · 64 题</span>
       <span class="spacer"></span>
-      <span class="build-stamp" title="构建版本"></span>
       <a class="tt-reset" href="#" id="resetLink">↺ 重新开始</a>
     </div>
 
@@ -99,8 +98,33 @@
   </main>
 
   <div class="toast" id="toast" role="status"></div>
-  <script src="data/questions.js?v=4.5.0"></script>
-  <script src="data/profile.js?v=4.5.0"></script>
-  <script src="script.js?v=4.5.0" defer></script>
+  <script src="data/questions.js"></script>
+  <script src="data/profile.js"></script>
+  <script src="script.js" defer></script>
+<script>
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    var lines = ['viewport=' + window.innerWidth + 'x' + window.innerHeight];
+    var wrap = document.querySelector('.test-wrap');
+    var kids = Array.prototype.slice.call(wrap.children).filter(function (el) {
+      return el.getBoundingClientRect().height > 0 && getComputedStyle(el).position !== 'fixed';
+    });
+    for (var i = 1; i < kids.length; i++) {
+      var g = Math.round(kids[i].getBoundingClientRect().top - kids[i - 1].getBoundingClientRect().bottom);
+      lines.push((kids[i - 1].className || '?').split(' ')[0].padEnd(16) + '→ ' +
+        (kids[i].className || '?').split(' ')[0].padEnd(16) + '= ' + g + 'px');
+    }
+    var r = document.querySelector('.radar-wrap').getBoundingClientRect();
+    var q = document.querySelector('.q-card').getBoundingClientRect();
+    lines.push('radar h=' + Math.round(r.height) + '  q-card h=' + Math.round(q.height) +
+      '  高度差=' + Math.round(q.height - r.height) + 'px');
+    lines.push('水平间距=' + Math.round(q.left - r.right) + 'px');
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:0;top:0;right:0;z-index:99999;background:#000;color:#0f0;font:12px/1.6 monospace;padding:8px;white-space:pre';
+    d.textContent = lines.join('\n');
+    document.body.appendChild(d);
+  }, 300);
+});
+</script>
 </body>
 </html>

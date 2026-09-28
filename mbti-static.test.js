@@ -66,7 +66,7 @@ console.log('MBTI 静态契约测试\n');
   PAGES.forEach(p => {
     const inQ = pages[p].indexOf('data/questions.js');
     const inP = pages[p].indexOf('data/profile.js');
-    const inS = pages[p].indexOf('src="script.js"');
+    const inS = pages[p].indexOf('src="script.js');
     check(p + ' 引入题库数据', inQ >= 0);
     check(p + ' 引入画像数据', inP >= 0);
     check(p + ' 数据脚本在 script.js 之前加载', inQ >= 0 && inS >= 0 && inQ < inS && inP < inS);
@@ -194,7 +194,27 @@ console.log('MBTI 静态契约测试\n');
     /id="jumpGrid"/.test(pages['test.html']) && /id="milestone"/.test(pages['test.html']));
 }
 
-/* ---------- I. 传播 / SEO 基建 ---------- */
+  /* ---------- A2. 缓存击穿：样式/脚本链接必须带版本号 ---------- */
+  {
+    const verOf = s => {
+      const m = s.match(/style\.css\?v=([\d.]+)/);
+      return m ? m[1] : null;
+    };
+    const seen = new Set();
+    ALL_PAGES.forEach(p => {
+      const v = verOf(pages[p]);
+      check(p + ' 样式链接带版本号（缓存击穿）', !!v, String(v));
+      if (v) seen.add(v);
+    });
+    check('所有页面使用同一版本号', seen.size === 1, [...seen].join(', '));
+    const pkgVer = JSON.parse(read('package.json')).version;
+    check('页面版本号与 package.json 一致（' + pkgVer + '）', seen.has(pkgVer), [...seen].join(', '));
+    check('script.js 也带版本号', /<script src="script\.js\?v=[\d.]+" defer>/.test(pages['index.html']));
+    check('script.js 暴露 BUILD 常量', /var BUILD = '[\d.]+'/.test(js));
+    check('页面含版本标记元素', /class="build-stamp"/.test(pages['index.html']));
+  }
+
+  /* ---------- I. 传播 / SEO 基建 ---------- */
 {
   PAGES.forEach(p => {
     const h = pages[p];
@@ -343,11 +363,13 @@ console.log('MBTI 静态契约测试\n');
   const m = sw.match(/const PRECACHE = \[([\s\S]*?)\];/);
   check('sw.js 含预缓存清单', !!m);
   const list = m ? (m[1].match(/'([^']+)'/g) || []).map(s => s.slice(1, -1)) : [];
-  const bad = list.filter(p => p !== './' && !exists(p.replace(/^\.\//, '')));
+  const bare = p => p.split('?')[0];
+  const bad = list.filter(p => p !== './' && !exists(bare(p).replace(/^\.\//, '')));
   check('预缓存清单 ' + list.length + ' 项全部存在', bad.length === 0, bad.join(', '));
   ['index.html', 'test.html', 'result.html', 'relation.html', 'style.css', 'script.js',
     'data/questions.js', 'data/profile.js', 'assets/fonts/inter-var.woff2', 'manifest.json']
-    .forEach(f => check('预缓存包含 ' + f, list.indexOf('./' + f) >= 0));
+    .forEach(f => check('预缓存包含 ' + f, list.some(x => bare(x) === './' + f)));
+  check('预缓存清单带版本号（与页面请求一致）', list.some(x => /\?v=[\d.]+$/.test(x)), list.slice(0, 3).join(', '));
 
   check('script.js 注册 Service Worker 且带协议守卫',
     /serviceWorker\.register\('sw\.js'\)/.test(js) && /location\.protocol !== 'http:'/.test(js));
@@ -423,7 +445,7 @@ console.log('MBTI 静态契约测试\n');
 /* ---------- P. 性能与缓存 ---------- */
 {
   PAGES.concat(['relation.html']).forEach(p => {
-    check(p + ' 脚本以 defer 加载（不阻塞解析）', /<script src="script\.js" defer><\/script>/.test(pages[p]));
+    check(p + ' 脚本以 defer 加载（不阻塞解析）', /<script src="script\.js\?v=[\d.]+" defer><\/script>/.test(pages[p]));
     check(p + ' 无外部样式/脚本依赖（全本地）',
       !/<link[^>]+rel="(stylesheet|preload|preconnect|dns-prefetch)"[^>]+href="https?:\/\//.test(pages[p]) &&
       !/<script[^>]+src="https?:\/\//.test(pages[p]));

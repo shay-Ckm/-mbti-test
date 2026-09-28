@@ -31,6 +31,16 @@ var MODES = {
 };
 var DEFAULT_MODE = 'deep';
 
+/* 构建版本（由 tools/bump-version.js 统一更新）
+   用途：页脚/顶部展示，便于确认线上跑的是哪一版，排查缓存问题 */
+var BUILD = '4.5.0';
+
+/* 把版本号写到页面的 .build-stamp 上，并挂到 window 便于排查 */
+function stampBuild() {
+  $$('.build-stamp').forEach(function (el) { el.textContent = 'v' + BUILD; });
+  if (typeof window !== 'undefined') window.__MBTI_BUILD = BUILD;
+}
+
 /* 题库访问：题目数据在 data/questions.js（Node 测试通过 global 注入） */
 function questionBank() {
   return (typeof QUESTIONS !== 'undefined' && QUESTIONS && QUESTIONS.length) ? QUESTIONS : [];
@@ -2523,6 +2533,7 @@ function init() {
   initTransitions();
   initCursorGlow();
   initServiceWorker();
+  stampBuild();
   var id = document.body && document.body.id;
   if (id === 'page-home') initHome();
   else if (id === 'page-test') initTest();

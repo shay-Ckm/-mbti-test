@@ -113,9 +113,14 @@ function fire(type, event) {
     check('install 写入预缓存（' + (bucket ? bucket.size : 0) + ' 项）',
       !!bucket && bucket.size === sw.PRECACHE.length, String(bucket && bucket.size));
     check('install 调用 skipWaiting（立即接管）', flags.skipped === true);
+    /* 清单里的样式/脚本带 ?v= 版本号（缓存击穿），比较时忽略查询串 */
+    const bare = u => Object.keys(Object.fromEntries(bucket)).map(k => k.split('?')[0]).indexOf(u) >= 0;
     check('预缓存包含首页与核心资源',
       ['/index.html', '/test.html', '/result.html', '/style.css', '/script.js', '/manifest.json']
-        .every(u => bucket.has(u)));
+        .every(bare));
+    check('预缓存的样式/脚本带版本号',
+      Object.keys(Object.fromEntries(bucket)).some(k => /^\/style\.css\?v=[\d.]+$/.test(k)),
+      Object.keys(Object.fromEntries(bucket)).filter(k => k.indexOf('style.css') >= 0).join(','));
   }
 
   /* 2. activate：清理旧缓存 + clients.claim */
@@ -150,12 +155,26 @@ function fire(type, event) {
     check('离线访问未缓存页面兜底首页', fallback && fallback.url === '/index.html', fallback && fallback.url);
   }
 
-  /* 5. 静态资源：缓存优先（缓存命中时不等网络） */
+  /* 5. 样式/脚本：网络优先（改版立即生效），离线回退缓存 */
   {
     fetchMode = 'online';
     const before = networkCalls;
     const res = await (await fire('fetch', { request: { method: 'GET', mode: 'no-cors', url: 'https://example.test/style.css' } })).captured;
-    check('静态资源命中缓存时先返回缓存', res && res.url === '/style.css', res && res.url);
+    check('样式/脚本走网络优先（不吃旧缓存）', res && /style\.css/.test(res.url) && networkCalls > before,
+      (res && res.url) + ' calls=' + (networkCalls - before));
+
+    fetchMode = 'offline';
+    const off = await (await fire('fetch', { request: { method: 'GET', mode: 'no-cors', url: 'https://example.test/style.css' } })).captured;
+    check('离线时样式回退到缓存', off && /style\.css/.test(off.url), off && off.url);
+    fetchMode = 'online';
+  }
+
+  /* 5b. 其他静态资源（图片/字体）：缓存优先 + 后台更新 */
+  {
+    cacheStore.get(sw.CACHE_VERSION).set('/assets/icon-192.png', makeResponse('/assets/icon-192.png'));
+    const before = networkCalls;
+    const res = await (await fire('fetch', { request: { method: 'GET', mode: 'no-cors', url: 'https://example.test/assets/icon-192.png' } })).captured;
+    check('图片资源命中缓存时先返回缓存', res && res.url === '/assets/icon-192.png', res && res.url);
     check('命中缓存仍会在后台发起更新请求（SWR）', networkCalls > before, 'networkCalls=' + networkCalls);
   }
 

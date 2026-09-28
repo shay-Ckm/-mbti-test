@@ -10,7 +10,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE_VERSION = 'mbti-v4.4.0';
+const CACHE_VERSION = 'mbti-v4.5.0';
 const CACHE_NAME = CACHE_VERSION;
 
 /* 预缓存清单（路径必须真实存在，静态契约测试会逐条校验） */
@@ -21,11 +21,11 @@ const PRECACHE = [
   './result.html',
   './relation.html',
   './404.html',
-  './style.css',
-  './script.js',
-  './data/questions.js',
-  './data/profile.js',
-  './assets/fonts/fonts.css',
+  './style.css?v=4.5.0',
+  './script.js?v=4.5.0',
+  './data/questions.js?v=4.5.0',
+  './data/profile.js?v=4.5.0',
+  './assets/fonts/fonts.css?v=4.5.0',
   './assets/fonts/inter-var.woff2',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -83,7 +83,18 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  /* 静态资源：缓存优先 + 后台更新 */
+  /* 样式与脚本：网络优先（保证改版立即生效），离线时回退缓存。
+     图片/字体等不常变的资源仍用"缓存优先 + 后台更新"。 */
+  if (/\.(css|js)$/.test(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then(function (response) { putInCache(request, response.clone()); return response; })
+        .catch(function () { return caches.match(request); })
+    );
+    return;
+  }
+
+  /* 其他静态资源：缓存优先 + 后台更新 */
   event.respondWith(
     caches.match(request).then(function (hit) {
       const network = fetch(request)
