@@ -10,7 +10,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE_VERSION = 'mbti-v5.1.0';
+const CACHE_VERSION = 'mbti-v5.1.1';
 const CACHE_NAME = CACHE_VERSION;
 
 /* 预缓存清单（路径必须真实存在，静态契约测试会逐条校验） */
@@ -21,11 +21,11 @@ const PRECACHE = [
   './result.html',
   './relation.html',
   './404.html',
-  './style.css?v=5.1.0',
-  './script.js?v=5.1.0',
-  './data/questions.js?v=5.1.0',
-  './data/profile.js?v=5.1.0',
-  './assets/fonts/fonts.css?v=5.1.0',
+  './style.css?v=5.1.1',
+  './script.js?v=5.1.1',
+  './data/questions.js?v=5.1.1',
+  './data/profile.js?v=5.1.1',
+  './assets/fonts/fonts.css?v=5.1.1',
   './assets/fonts/inter-var.woff2',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -44,8 +44,14 @@ function putInCache(request, response) {
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
+    /* 逐条预缓存 + 忽略单条失败：旧实现用 cache.addAll，任一条目 404 会让整批回滚，
+       新 SW 永远装不上、旧缓存永久滞留（实测会静默卡在旧版本，控制台也不报错）。 */
     caches.open(CACHE_NAME)
-      .then(function (cache) { return cache.addAll(PRECACHE); })
+      .then(function (cache) {
+        return Promise.all(PRECACHE.map(function (u) {
+          return cache.add(u).catch(function () { /* 单条失败不影响整体安装 */ });
+        }));
+      })
       .then(function () { return self.skipWaiting(); })
   );
 });
@@ -83,12 +89,19 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  /* 样式与脚本：网络优先（保证改版立即生效），离线时回退缓存。
-     图片/字体等不常变的资源仍用"缓存优先 + 后台更新"。 */
+  /* 样式与脚本：网络优先（保证改版立即生效），离线或源站异常时回退缓存。
+     必须校验 response.ok：5xx/404 属于"成功返回"，直接透传会让页面既没 JS 也没样式
+     （实测源站 503 时 window.__MBTI_BUILD 为 null），而缓存里其实还躺着完好副本。 */
   if (/\.(css|js)$/.test(url.pathname)) {
     event.respondWith(
       fetch(request)
-        .then(function (response) { putInCache(request, response.clone()); return response; })
+        .then(function (response) {
+          if (!response || !response.ok) {
+            return caches.match(request).then(function (hit) { return hit || response; });
+          }
+          putInCache(request, response.clone());
+          return response;
+        })
         .catch(function () { return caches.match(request); })
     );
     return;
@@ -98,7 +111,10 @@ self.addEventListener('fetch', function (event) {
   event.respondWith(
     caches.match(request).then(function (hit) {
       const network = fetch(request)
-        .then(function (response) { putInCache(request, response.clone()); return response; })
+        .then(function (response) {
+          if (response && response.ok) putInCache(request, response.clone());
+          return response;
+        })
         .catch(function () { return hit; });
       return hit || network;
     })

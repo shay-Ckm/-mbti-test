@@ -105,8 +105,8 @@ function buildPage(code) {
   <meta name="twitter:image" content="${SITE}assets/og-image.png">
   <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
   <link rel="preload" as="font" type="font/woff2" href="../assets/fonts/inter-var.woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/fonts/fonts.css?v=5.1.0">
-  <link rel="stylesheet" href="../style.css?v=5.1.0">
+  <link rel="stylesheet" href="../assets/fonts/fonts.css?v=5.1.1">
+  <link rel="stylesheet" href="../style.css?v=5.1.1">
 </head>
 <body id="page-type" style="--tcolor:${e.color};--tcolor-ink:${e.ink || e.color};--tcolor-soft:${e.soft}">
   <a class="skip-link" href="#main">跳到主内容</a>

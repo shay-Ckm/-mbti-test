@@ -35,7 +35,7 @@ var DEFAULT_MODE = 'deep';
 
 /* 构建版本（由 tools/bump-version.js 统一更新）
    用途：页脚/顶部展示，便于确认线上跑的是哪一版，排查缓存问题 */
-var BUILD = '5.1.0';
+var BUILD = '5.1.1';
 
 /* 把版本号写到页面的 .build-stamp 上，并挂到 window 便于排查 */
 function stampBuild() {
@@ -1437,6 +1437,7 @@ function initResult() {
   }
 
   // 本地完成人数 +1
+  res = sanitizeResult(res) || res;      // 渲染前统一净化（防存储型 XSS 与脏数据）
   setStore(STORAGE_KEYS.completions, getStoreAs(STORAGE_KEYS.completions, 'number', 0) + 1);
 
   if (res.easterEgg) {
@@ -1447,7 +1448,7 @@ function initResult() {
     return;
   }
 
-  renderResult(res);
+  renderResult(sanitizeResult(res) || res);
 }
 
 /* 彩蛋页也给出信息：四个维度的实际落点（都贴中线才叫"框不住"） */
@@ -1465,6 +1466,52 @@ function renderEasterDims(res) {
       '<span class="ed-note">' + (dev <= 8 ? '几乎居中' : '略偏 ' + DIM_FULL[dim][d.pctB >= 50 ? 1 : 0]) + '</span>' +
       '</div>';
   }).join('');
+}
+
+/* 结果数据净化（安全边界）：
+   结果对象来自 localStorage，渲染层有大量 innerHTML 拼接。安全审计实测：
+   `mbti_result.answered = '<img src=x onerror=...>'`、`type.emoji = '<svg onload=...>'`、
+   `dims.EI.A`、`facetSummary`、`history.letters` 等 8 处都能被执行（存储型 DOM XSS）。
+   这里统一把"本可重算的字段"重算、其余强制数字/白名单字符串，
+   让渲染层拿到的永远是干净数据（并且 type 一律取自内置 TYPES，不信任存储）。 */
+function sanitizeResult(res) {
+  if (!res || typeof res !== 'object') return null;
+  var letters = (typeof res.letters === 'string' && /^[EI][SN][TF][JP]$/.test(res.letters)) ? res.letters : '';
+  if (!letters || !res.dims || typeof res.dims !== 'object') return null;
+  var num = function (v) { var n = Number(v); return isFinite(n) ? n : 0; };
+  var clamp = function (v) { return Math.max(0, Math.min(100, num(v))); };
+  var safe = function (v) { return String(v == null ? '' : v).replace(/[<>&"'`]/g, ''); };
+  var out = {
+    mode: res.mode === 'quick' ? 'quick' : 'deep',
+    modeLabel: res.mode === 'quick' ? '快速测试' : '深度测试',
+    bankVersion: num(res.bankVersion),
+    letters: letters,
+    answered: num(res.answered),
+    consistencyIssues: num(res.consistencyIssues),
+    overallConfidence: clamp(res.overallConfidence),
+    easterEgg: res.easterEgg === true,
+    type: TYPES[letters] || null,          // 类型资料一律用内置常量
+    dims: {}
+  };
+  DIMS.forEach(function (dim) {
+    var A = dim[0], B = dim[1];
+    var d = (res.dims[dim] && typeof res.dims[dim] === 'object') ? res.dims[dim] : {};
+    var pct = clamp(d.pctB);
+    var letter = (d.letter === A || d.letter === B) ? d.letter : (pct >= 50 ? B : A);
+    out.dims[dim] = {
+      A: A, B: B, score: num(d.score), pctB: pct, letter: letter,
+      strength: clamp(d.strength), amb: d.amb === true, confidence: clamp(d.confidence),
+      answered: num(d.answered), scored: num(d.scored), neutral: num(d.neutral), total: num(d.total),
+      facets: Array.isArray(d.facets) ? d.facets.slice(0, 8).map(function (f) {
+        var name = safe(f && f.name);
+        return { name: name, lean: num(f && f.lean), letter: safe(f && f.letter) };
+      }) : [],
+      facetAgreement: num(d.facetAgreement),
+      facetSummary: safe(d.facetSummary),
+      label: letter
+    };
+  });
+  return out;
 }
 
 function renderResult(res) {
@@ -1494,7 +1541,7 @@ function renderResult(res) {
 
   var tags = $('#tags');
   tags.innerHTML = '';
-  t.tags.forEach(function (tag) {
+  (Array.isArray(t.tags) ? t.tags : []).forEach(function (tag) {
     var s = document.createElement('span');
     s.className = 'tag';
     s.textContent = tag;
@@ -1863,7 +1910,13 @@ function updateChecklistProgress(key, total) {
 function renderHistory(res) {
   var wrap = $('#history');
   if (!wrap) return;
-  var list = getStore(STORAGE_KEYS.history) || [];
+  /* 读取端也要校验：历史记录来自 localStorage，形状可能被写坏或被旧版本截断
+     （实测 mbti_history 为字符串、含 null 元素、dims 非数组时都会抛异常并让整块消失） */
+  var raw = getStoreAs(STORAGE_KEYS.history, 'array', []);
+  var list = raw.filter(function (h) {
+    return h && typeof h === 'object' && typeof h.letters === 'string' && /^[EI][SN][TF][JP]$/.test(h.letters) &&
+      Array.isArray(h.dims) && h.dims.length >= 4;
+  }).slice(0, 10);
   if (!list.length) {
     list = [{ t: Date.now(), mode: res.mode, letters: res.letters, dims: DIMS.map(function (d) { return res.dims[d].pctB; }), conf: res.overallConfidence }];
   }
@@ -2743,6 +2796,10 @@ if (typeof module !== 'undefined' && module.exports) {
     distribute: distribute,
     computeResult: computeResult,
     answeredCount: answeredCount,
+    sanitizeResult: sanitizeResult,
+    normAnswer: normAnswer,
+    isAnswered: isAnswered,
+    getStoreAs: getStoreAs,
     computeRelation: computeRelation,
     RELATION_RULES: RELATION_RULES,
     TYPE_CODES: DIMS_ORDER_TYPES,

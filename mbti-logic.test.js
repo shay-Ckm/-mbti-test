@@ -519,6 +519,37 @@ console.log('MBTI 逻辑测试 v2\n');
   /* 10.7 answeredCount 只认合法值 */
   assert('answeredCount 忽略非法值', api.answeredCount({ a: 3, b: 'x', c: null, d: undefined, e: 0, f: NaN }) === 2,
     String(api.answeredCount({ a: 3, b: 'x', c: null, d: undefined, e: 0, f: NaN })));
+
+  /* 10.8 结果净化：渲染层拿到的必须是数字/白名单字符串（防存储型 DOM XSS） */
+  {
+    const dirty = {
+      mode: 'quick', letters: 'INTJ',
+      answered: '<img src=x onerror=alert(1)>',
+      bankVersion: '<img src=x onerror=alert(1)>',
+      overallConfidence: 9999, consistencyIssues: 0, easterEgg: false,
+      type: { zh: 'x', emoji: '<svg onload=alert(1)>', tags: 'not-an-array' },
+      dims: {}
+    };
+    DIMS.forEach((d, i) => {
+      dirty.dims[d] = {
+        A: '<img src=x onerror=alert(1)>', B: '<svg onload=alert(1)>', pctB: 30 + i * 10,
+        letter: '<script>', strength: 40, amb: false, confidence: 70, answered: 1, scored: 1, neutral: 0, total: 6,
+        facets: [], facetAgreement: 1, facetSummary: '<img src=x onerror=alert(1)>', label: '<svg onload=alert(1)>'
+      };
+    });
+    const clean = api.sanitizeResult(dirty);
+    assert('净化后数字字段被强制为数字',
+      clean.answered === 0 && clean.bankVersion === 0 && clean.overallConfidence <= 100,
+      clean.answered + ' / ' + clean.bankVersion + ' / ' + clean.overallConfidence);
+    assert('净化后 HTML 片段被剥离（label/facetSummary/两极字母）',
+      !/[<>]/.test(clean.dims.EI.label + clean.dims.EI.facetSummary) &&
+      clean.dims.EI.A === 'E' && clean.dims.EI.B === 'I',
+      clean.dims.EI.label + ' | ' + clean.dims.EI.facetSummary + ' | ' + clean.dims.EI.A + clean.dims.EI.B);
+    assert('净化后 type 一律取自内置常量（不信任存储）',
+      clean.type && clean.type.zh === '战略家' && Array.isArray(clean.type.tags),
+      clean.type && clean.type.zh);
+    assert('非法 letters 的 result 直接判为不可用', api.sanitizeResult({ letters: 'ABCD', dims: dirty.dims }) === null);
+  }
 }
 
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败');

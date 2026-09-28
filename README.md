@@ -152,11 +152,11 @@ HTML5 + CSS3 + 原生 JavaScript（零框架、零构建、零 npm 依赖，双�
 
 ```bash
 npm test                     # 一键运行五套测试
-npm run test:static          # 静态契约：ID/类名/CSS/数据/传播/PWA/导出/无障碍/性能（221 项）
-npm run test:logic           # 逻辑：题库结构 / 随机抽题 / 计分 / 输入健壮性 / 一致性 / 关系引擎（172 项）
+npm run test:static          # 静态契约：ID/类名/CSS/数据/传播/PWA/导出/无障碍/性能（228 项）
+npm run test:logic           # 逻辑：题库结构 / 随机抽题 / 计分 / 输入健壮性 / 一致性 / 关系引擎（176 项）
 npm run test:psy             # 计分准确率仿真：恢复率 / α / 重测 / 响应定势（31 项）
 npm run test:smoke           # DOM 冒烟：页面初始化、关键交互、导出、打印、存储污染自愈（70 项）
-npm run test:sw              # Service Worker 行为：离线策略（21 项）
+npm run test:sw              # Service Worker 行为：离线策略（23 项）
 npm run audit:css            # 额外：扫描 style.css 中未被引用的类名（维护用）
 npm run audit:bank           # 额外：题库心理测量审计（结构/侧面/措辞/重复/镜像题）
 npm run build:bank           # 额外：从 _bank/*.json 校验并生成 data/questions.js
@@ -164,7 +164,7 @@ npm run e2e                  # 真浏览器端到端（Chrome + CDP，默认打�
 npm run e2e -- ./index.html  # 同一套用例跑本地文件（file:// 模式会跳过线上抓取检查）
 ```
 
-当前共 **515 项断言全部通过**（输出以 `结果：N 通过，0 失败` 结尾）。
+当前共 **528 项断言全部通过**（输出以 `结果：N 通过，0 失败` 结尾）。
 
 ### 真浏览器端到端（`npm run e2e`）
 上面五套是 Node 内的单元/契约测试；`npm run e2e` 用 **Chrome DevTools 协议**驱动真实浏览器真渲染跑一遍完整用户旅程：

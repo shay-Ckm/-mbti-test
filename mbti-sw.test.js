@@ -18,9 +18,11 @@ const ROOT = __dirname;
 
 /* ---------- stub：Response / Cache / CacheStorage / self ---------- */
 function makeResponse(url, status, type) {
+  const st = status === undefined ? 200 : status;
   return {
     url: url,
-    status: status === undefined ? 200 : status,
+    status: st,
+    ok: st >= 200 && st < 300,      // 真实 Response 有 ok；SW 的 .ok 校验依赖它
     type: type || 'basic',
     clone() { return makeResponse(url, status, type); }
   };
@@ -35,12 +37,19 @@ function normalize(req) {
 }
 
 const cacheStore = new Map();   // cacheName -> Map(normalizedUrl -> response)
+/* 让某条预缓存路径"取不到"（模拟 404），用于验证单条失败不会拖垮整个安装 */
+let missingAssets = [];
 const caches = {
   async open(name) {
     if (!cacheStore.has(name)) cacheStore.set(name, new Map());
     const bucket = cacheStore.get(name);
     return {
       async addAll(urls) { urls.forEach(u => bucket.set(normalize(u), makeResponse(normalize(u)))); },
+      /* 新实现改为逐条 cache.add（单条 404 不再让整批回滚） */
+      async add(u) {
+        if (missingAssets.indexOf(String(u)) >= 0) throw new Error('404 ' + u);
+        bucket.set(normalize(u), makeResponse(normalize(u)));
+      },
       async put(req, res) { bucket.set(normalize(req), res); },
       async match(req) { return bucket.get(normalize(req)); }
     };
@@ -184,6 +193,21 @@ function fire(type, event) {
     check('跨域请求不被接管', cross.captured === null);
     const post = await fire('fetch', { request: { method: 'POST', mode: 'cors', url: 'https://example.test/api' } });
     check('非 GET 请求不被接管', post.captured === null);
+  }
+
+  /* 7. 单条预缓存失败不能拖垮整个安装
+        （旧实现用 cache.addAll：任一条目 404 → 整批回滚 → 新 SW 永不激活、旧缓存永久滞留） */
+  {
+    cacheStore.clear();
+    missingAssets = [sw.PRECACHE[sw.PRECACHE.length - 1]];
+    let waiting2 = null;
+    listeners.install({ waitUntil(p) { waiting2 = p; } });
+    await waiting2;
+    const bucket3 = cacheStore.get(sw.CACHE_VERSION);
+    check('单条预缓存失败仍能完成安装（skipWaiting 已调用）', flags.skipped === true);
+    check('单条失败不影响其余条目写入（' + (bucket3 ? bucket3.size : 0) + '/' + (sw.PRECACHE.length - 1) + ' 项）',
+      !!bucket3 && bucket3.size === sw.PRECACHE.length - 1, String(bucket3 && bucket3.size));
+    missingAssets = [];
   }
 
   console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败');
