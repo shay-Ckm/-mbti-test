@@ -35,7 +35,7 @@ var DEFAULT_MODE = 'deep';
 
 /* 构建版本（由 tools/bump-version.js 统一更新）
    用途：页脚/顶部展示，便于确认线上跑的是哪一版，排查缓存问题 */
-var BUILD = '5.0.1';
+var BUILD = '5.1.0';
 
 /* 把版本号写到页面的 .build-stamp 上，并挂到 window 便于排查 */
 function stampBuild() {
@@ -63,6 +63,19 @@ var SCALE = [
   { label: '强不同意', tag: '完全不符', val: -3 }
 ];
 
+/* 作答值白名单：只有量表内的 {3,1,0,-1,-3} 才算有效作答。
+   为什么必须校验：localStorage 可能被外部写入或被截断，
+   `sum += "3"` 会变成字符串拼接（曾实测出 pctB = -34722147%），
+   写入 Infinity/NaN 则会让整条链路出现 NaN 并渲染成 "null%"。
+   非法值一律按"未作答"处理——不计分、不计入已答、进度也不推进。 */
+var VALID_ANSWERS = [3, 1, 0, -1, -3];
+function normAnswer(v) {
+  if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) v = Number(v);
+  return (typeof v === 'number' && isFinite(v) && VALID_ANSWERS.indexOf(v) >= 0) ? v : undefined;
+}
+/* 该题是否已有合法作答（进度、跳题网格、交卷门槛统一用它判断） */
+function isAnswered(v) { return normAnswer(v) !== undefined; }
+
 /* 维度定义：first = 首字母极，second = 次字母极 */
 var DIMS = ['EI', 'SN', 'TF', 'JP'];
 var DIM_LABELS = { EI: 'E·I', SN: 'S·N', TF: 'T·F', JP: 'J·P' };
@@ -70,7 +83,7 @@ var DIM_FULL = { EI: ['外向', '内向'], SN: ['实感', '直觉'], TF: ['思�
 
 /* ================= 题库（外部数据文件 data/questions.js） =================
    双档位共用同一题库（v3）：
-   - 快速测试 quick：每维 6 题（极性 3:3，覆盖全部 4 个内容侧面），共 24 题
+   - 快速测试 quick：每维随机 6 题（极性 3:3，按侧面轮流分配 → 覆盖 5 个侧面中的至少 3 个），共 24 题
    - 深度测试 deep ：每维 16 题（极性 8:8，每侧面两侧各 2 题），共 64 题
    每题字段：dim 维度 / dir 作答方向 / facet 内容侧面 / quick 是否快速档 / pair 镜像题
    浏览器按 <script> 顺序加载 data/questions.js；Node 测试在 require 本文件前注入 global.QUESTIONS。 */
@@ -416,8 +429,38 @@ function getStore(key) {
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
+/* 写入存储：返回是否成功。
+   为什么要返回值：隐私模式 / 配额满 / 被禁用时 localStorage 会抛异常，
+   旧实现静默吞掉异常 → 界面照常推进、刷新后进度归零（实测 24 次写入全部丢失却毫无提示）。 */
+var storageFailed = false;
 function setStore(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 隐私模式等场景静默失败 */ }
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (e) {
+    storageFailed = true;
+    return false;
+  }
+}
+/* 首次写入失败时给用户一次明确提示（只提示一次，避免刷屏） */
+function warnStorageOnce() {
+  if (!storageFailed || warnStorageOnce._done) return;
+  warnStorageOnce._done = true;
+  if (typeof toast === 'function') {
+    toast('浏览器存储不可用，进度无法保存，请不要刷新页面 ⚠️');
+  }
+}
+/* 带类型校验的读取：localStorage 可能被外部写入或被截断，
+   只防 JSON 语法错误不够——`mbti_answers='"abc"'` 会让点选项抛异常、
+   `mbti_history=5` 会让交卷永久失效。这里按期望类型校验，不符则返回 fallback。 */
+function getStoreAs(key, kind, fallback) {
+  var v = getStore(key);
+  var ok = kind === 'array' ? Array.isArray(v)
+    : kind === 'object' ? (!!v && typeof v === 'object' && !Array.isArray(v))
+    : kind === 'string' ? (typeof v === 'string')
+    : kind === 'number' ? (typeof v === 'number' && isFinite(v))
+    : true;
+  return ok ? v : (fallback === undefined ? null : fallback);
 }
 function clearTestData() {
   try {
@@ -432,6 +475,10 @@ function clearTestData() {
 /* 题库版本迁移：版本不一致时清空旧答案与旧结果，避免误读
    返回 true = 无需提示；false = 确有旧数据被清空（调用方提示"题库已升级"） */
 function ensureBankVersion() {
+  /* 题库没加载成功（QUESTIONS 缺失 / 被截断的响应）时**绝不能动用户数据**：
+     否则会删掉上一次结果与进行中的作答，还会把版本写成 0，
+     等题库恢复后又被判定成"又一次升级"，提示也变成误导。 */
+  if (!questionBank().length || !bankVersion()) return true;
   var saved = getStore(STORAGE_KEYS.version);
   if (saved === bankVersion()) return true;
 
@@ -445,6 +492,9 @@ function ensureBankVersion() {
     localStorage.removeItem(STORAGE_KEYS.current);
     localStorage.removeItem(STORAGE_KEYS.set);
     localStorage.removeItem(STORAGE_KEYS.result);
+    /* 一并清掉"最近出现过"的题号：题库换了，旧 id 的语义可能已变，
+       留着会让"优先抽没见过的题"反过来变成"优先抽见过的题" */
+    localStorage.removeItem(STORAGE_KEYS.seen);
   } catch (e) { /* ignore */ }
   setStore(STORAGE_KEYS.version, bankVersion());
   return hadData ? false : true;
@@ -478,8 +528,7 @@ function distribute(total, buckets) {
 
 /* 最近两轮出现过的题 id（用于"换一批题"） */
 function seenIds() {
-  var v = getStore(STORAGE_KEYS.seen);
-  return (v && v.length) ? v : [];
+  return getStoreAs(STORAGE_KEYS.seen, 'array', []);
 }
 function markSeen(ids) {
   setStore(STORAGE_KEYS.seen, seenIds().concat(ids || []).slice(-120));
@@ -566,8 +615,14 @@ function computeResult(answers, mode, setIds) {
   var byId = {};
   bank.forEach(function (q) { byId[q.id] = q; });
   /* 题集：优先用本档实际抽到的题（页面会把 mbti_set 传进来）；
-     缺省时退回"已作答的题"，保证旧数据也能计分。 */
-  var ids = (setIds && setIds.length) ? setIds : Object.keys(answers);
+     缺省时退回"已作答的题"，保证旧数据也能计分。
+     这里做去重 + 白名单过滤：被污染的存储可能塞入重复 id / 未知 id / 非字符串，
+     若不去重，同一题会被算多遍（实测 answered 192 > total 16）。 */
+  var rawIds = (Array.isArray(setIds) && setIds.length) ? setIds : Object.keys(answers || {});
+  var ids = [];
+  rawIds.forEach(function (id) {
+    if (typeof id === 'string' && byId[id] && ids.indexOf(id) < 0) ids.push(id);
+  });
   var res = {
     mode: conf.key, modeLabel: conf.label, bankVersion: bankVersion(),
     letters: '', dims: {}, easterEgg: false, type: null,
@@ -584,13 +639,13 @@ function computeResult(answers, mode, setIds) {
       var q = byId[id];
       if (q && q.dim === dim) items.push(q);
     });
-    var total = conf.perDim;               // 本档每维抽题量（恒定：6 或 16）
+    var total = Math.max(conf.perDim, items.length);   // 分母：本档抽题量（异常题集下取较大者，保证 scored ≤ total）
     var sumA = 0, cntA = 0, sumB = 0, cntB = 0, answered = 0, neutral = 0;
     var facetMap = {};
 
     items.forEach(function (q) {
-      var r = answers[q.id];
-      if (r === null || r === undefined) return;
+      var r = normAnswer(answers[q.id]);
+      if (r === undefined) return;          // 未作答或非法值：一律跳过（不计分、不计已答）
       answered++;
       /* "不确定"（0）：只记录，不计入任何一极的均值 → 不影响得分，
          但会降低有效覆盖度（scored/total），从而如实拉低置信度。 */
@@ -603,16 +658,18 @@ function computeResult(answers, mode, setIds) {
     var avgA = cntA ? sumA / cntA : 0;
     var avgB = cntB ? sumB / cntB : 0;
     var score = (avgB - avgA) / 2;                 // ∈ [-3, 3]
-    var pctB = Math.round(50 + (score / 3) * 50);  // ∈ [0, 100]，50 为中立
+    if (!isFinite(score)) score = 0;
+    /* 双保险：即使上游出现异常，也绝不输出越界百分比 */
+    var pctB = Math.max(0, Math.min(100, Math.round(50 + (score / 3) * 50)));
     var letter = pctB >= 50 ? B : A;
-    var strength = Math.min(100, Math.round(Math.abs(pctB - 50) * 2));
+    var strength = Math.max(0, Math.min(100, Math.round(Math.abs(pctB - 50) * 2)));
     /* 倾向模糊判定：必须严格小于 1。
        量表是 {-3,-1,1,3}，如果只用"同意/不同意"（+1/-1）作答，
        完全一致的作答也会得到 |score| = 1 —— 旧逻辑用 <= 1 会把这类
        "温和但明确"的结果误判为四维全模糊（从而总是显示彩蛋页）。 */
     var amb = Math.abs(score) < 1;
 
-    /* 侧面级一致性：4 个内容侧面的倾向是否指向同一端 */
+    /* 侧面级一致性：各内容侧面（每维 5 个）的倾向是否指向同一端 */
     var facets = Object.keys(facetMap).map(function (name) {
       var f = facetMap[name];
       var a = f.nA ? f.sumA / f.nA : 0;
@@ -635,6 +692,7 @@ function computeResult(answers, mode, setIds) {
     var strengthRate = Math.min(1, strength / 70);
     var confidence = Math.round(100 * coverage * sat * (0.45 + 0.55 * strengthRate) *
       (0.55 + 0.45 * facetAgreement));
+    if (!isFinite(confidence)) confidence = 0;
     confidence = Math.max(0, Math.min(100, confidence));
 
     if (!amb) allAmb = false;
@@ -672,17 +730,19 @@ function computeResult(answers, mode, setIds) {
   });
 
   var overall = Math.round(confSum / DIMS.length) - res.consistencyIssues * 12;
+  if (!isFinite(overall)) overall = 0;
   res.overallConfidence = Math.max(0, Math.min(100, overall));
   res.easterEgg = allAmb;
   res.type = TYPES[res.letters] || null;
   return res;
 }
 
+/* 已答计数：只认合法作答值（与进度条、交卷门槛口径一致） */
 function answeredCount(answers) {
-  if (!answers) return 0;
+  if (!answers || typeof answers !== 'object') return 0;
   var n = 0;
   Object.keys(answers).forEach(function (k) {
-    if (answers[k] !== null && answers[k] !== undefined) n++;
+    if (isAnswered(answers[k])) n++;
   });
   return n;
 }
@@ -781,7 +841,7 @@ function initHome() {
   }, 85);
 
   var base = 128473 + Math.floor(Math.random() * 50000);
-  var done = Number(getStore(STORAGE_KEYS.completions) || 0);
+  var done = getStoreAs(STORAGE_KEYS.completions, 'number', 0) || 0;
   countUp($('#homeCount'), base + done, 1500, function (v) {
     return '已有 ' + v.toLocaleString('zh-CN') + ' 人完成测试 ✨';
   });
@@ -794,7 +854,7 @@ function bindModeCards() {
   var wrap = $('#modeCards');
   if (!wrap) return;
 
-  var saved = getStore(STORAGE_KEYS.mode);
+  var saved = getStoreAs(STORAGE_KEYS.mode, 'string');
   var mode = MODES[saved] ? saved : DEFAULT_MODE;
   syncModeCards(mode);
 
@@ -802,7 +862,7 @@ function bindModeCards() {
     card.addEventListener('click', function () {
       var m = card.getAttribute('data-mode');
       if (!MODES[m]) return;
-      var prev = getStore(STORAGE_KEYS.mode);
+      var prev = getStoreAs(STORAGE_KEYS.mode, 'string');
       setStore(STORAGE_KEYS.mode, m);
       syncModeCards(m);
       // 切换档位意味着题序变化，清掉旧进度避免错位
@@ -817,8 +877,8 @@ function bindModeCards() {
   });
 
   // 未完成进度提示
-  var savedSet = getStore(STORAGE_KEYS.set);
-  var answers = getStore(STORAGE_KEYS.answers) || {};
+  var savedSet = getStoreAs(STORAGE_KEYS.set, 'array');
+  var answers = getStoreAs(STORAGE_KEYS.answers, 'object', {});
   var done = answeredCount(answers);
   var hint = $('#resumeHint');
   if (hint) {
@@ -863,14 +923,18 @@ function initTest() {
   if (!root) return;
   var migrated = ensureBankVersion();
 
-  // 档位
-  var savedMode = getStore(STORAGE_KEYS.mode);
+  // 档位（只认字符串键名，防止被污染的存储把档位写成对象/数字）
+  var savedMode = getStoreAs(STORAGE_KEYS.mode, 'string');
   testState.mode = MODES[savedMode] ? savedMode : DEFAULT_MODE;
   setStore(STORAGE_KEYS.mode, testState.mode);
 
-  // 题序：优先恢复上次未完成的题序（校验 id 仍存在）
-  var savedSet = getStore(STORAGE_KEYS.set);
-  var validSet = savedSet && savedSet.length && savedSet.every(function (id) { return findQuestion(id); });
+  // 题序：优先恢复上次未完成的题序（必须是数组、id 仍存在、且题量与本档一致）
+  var conf0 = modeConf(testState.mode);
+  var needTotal = conf0.perDim * DIMS.length;
+  var savedSet = getStoreAs(STORAGE_KEYS.set, 'array');
+  var validSet = Array.isArray(savedSet) && savedSet.length === needTotal &&
+    savedSet.every(function (id) { return findQuestion(id); }) &&
+    new Set(savedSet).size === savedSet.length;
   if (!validSet) {
     testState.set = buildQuestionSet(testState.mode).map(function (q) { return q.id; });
     testState.answers = {};
@@ -878,14 +942,16 @@ function initTest() {
     setStore(STORAGE_KEYS.answers, {});
   } else {
     testState.set = savedSet;
-    testState.answers = getStore(STORAGE_KEYS.answers) || {};
+    /* 已答集合必须是普通对象：若被写成字符串/数字，点选项会在赋值处抛异常，
+       页面表现为"点了没反应"，且永远不会自愈 */
+    testState.answers = getStoreAs(STORAGE_KEYS.answers, 'object', {});
   }
 
-  var savedIdx = getStore(STORAGE_KEYS.current);
+  testState.finishing = false;      // 每次进入答题页重置交卷守卫（否则第二次测试永远交不了卷）
+  var savedIdx = getStoreAs(STORAGE_KEYS.current, 'number');
   testState.index = (typeof savedIdx === 'number' && savedIdx >= 0 && savedIdx < testState.set.length) ? savedIdx : 0;
 
   // 档位徽章 + 总题数
-  var conf0 = modeConf(testState.mode);
   var badge = $('#modeBadge');
   if (badge) {
     badge.innerHTML = '<b>' + conf0.label + '</b> · ' + testState.set.length + ' 题 · ' + conf0.time;
@@ -933,7 +999,7 @@ function buildJumpGrid() {
     b.type = 'button';
     b.className = 'jump-dot';
     b.textContent = i + 1;
-    if (testState.answers[id] !== undefined && testState.answers[id] !== null) b.classList.add('done');
+    if (isAnswered(testState.answers[id])) b.classList.add('done');
     b.addEventListener('click', function () { goTo(i); });
     grid.appendChild(b);
   });
@@ -1043,8 +1109,12 @@ function renderQuestion(i) {
 function selectOption(val) {
   var q = currentQuestion();
   if (!q) return;
+  /* 双保险：即使 answers 被外部写坏成非对象，这里也自愈而不是抛异常 */
+  if (!testState.answers || typeof testState.answers !== 'object' || Array.isArray(testState.answers)) {
+    testState.answers = {};
+  }
   testState.answers[q.id] = val;
-  setStore(STORAGE_KEYS.answers, testState.answers);
+  if (!setStore(STORAGE_KEYS.answers, testState.answers)) warnStorageOnce();
   setStore(STORAGE_KEYS.current, testState.index);
   $$('.opt').forEach(function (b) {
     var on = Number(b.getAttribute('data-val')) === val;
@@ -1079,8 +1149,7 @@ function positionIndicator() {
 function updateProgress() {
   var total = testState.set.length || 1;
   var done = testState.set.filter(function (id) {
-    var v = testState.answers[id];
-    return v !== undefined && v !== null;
+    return isAnswered(testState.answers[id]);
   }).length;
   $('#progressFill').style.width = (done / total * 100) + '%';
   /* #qDone 只写数字：外层 HTML 已有「已完成 … 题」文案，
@@ -1101,7 +1170,7 @@ function dimAnswered(answers, dim) {
   var n = 0;
   questionBank().forEach(function (q) {
     var v = answers[q.id];
-    if (q.dim === dim && v !== undefined && v !== null) n++;
+    if (q.dim === dim && isAnswered(v)) n++;
   });
   return n;
 }
@@ -1182,7 +1251,27 @@ function bubbleMsg(done, total) {
 }
 
 function finishTest() {
-  var res = computeResult(testState.answers, testState.mode, testState.set);
+  if (testState.finishing) return;      // 幂等：连点"查看结果"只交卷一次
+  var probe = computeResult(testState.answers, testState.mode, testState.set);
+  /* 完成度门槛：某些维度一道都没计分、而另一些维度有数据时，那些空维度的字母
+     只会是"默认次字母极"（score 0 → pctB 50 → letter = B），那是凭空得出的结论。
+     拦住并跳到第一道未答题，避免"只答几题也能生成完整人格报告"。
+     注意：四维**全部**没有计分数据（例如全选"不确定"）不算"部分作答"，
+     此时应交由引擎如实走"框不住你"彩蛋页，而不是把人挡在门外。 */
+  var scoredDims = DIMS.filter(function (d) { return probe.dims[d].scored > 0; });
+  var emptyDims = DIMS.filter(function (d) { return probe.dims[d].scored === 0; });
+  if (emptyDims.length && scoredDims.length) {
+    var left = testState.set.filter(function (id) { return !isAnswered(testState.answers[id]); }).length;
+    toast('还有 ' + left + ' 题未作答；请至少在每个维度作答一次');
+    var next = -1;
+    for (var i = 0; i < testState.set.length; i++) {
+      if (!isAnswered(testState.answers[testState.set[i]])) { next = i; break; }
+    }
+    if (next >= 0) goTo(next);
+    return;
+  }
+  testState.finishing = true;
+  var res = probe;
   setStore(STORAGE_KEYS.result, res);
   markSeen(testState.set);          // 记录本次用过的题，下次开测优先换一批
   pushHistory(res);
@@ -1320,16 +1409,35 @@ function initResult() {
   var root = $('#page-result');
   if (!root) return;
 
-  var res = getStore(STORAGE_KEYS.result);
-  var answers = getStore(STORAGE_KEYS.answers);
-  if (!res && answers) res = computeResult(answers, getStore(STORAGE_KEYS.mode), getStore(STORAGE_KEYS.set));
-  if (!res || answeredCount(answers || {}) === 0) {
-    location.href = 'index.html';
+  var res = getStoreAs(STORAGE_KEYS.result, 'object');
+  var answers = getStoreAs(STORAGE_KEYS.answers, 'object');
+  /* 结构校验：被截断的 result（缺 dims、dims=null、letters 缺失）会让渲染层
+     直接 TypeError 白屏。可用则用，不可用就用 answers 现算，仍不可用则给可读提示。 */
+  var usableResult = function (r) {
+    return !!r && typeof r.letters === 'string' && /^[EI][SN][TF][JP]$/.test(r.letters) &&
+      !!r.dims && DIMS.every(function (d) {
+        return r.dims[d] && typeof r.dims[d].pctB === 'number' && isFinite(r.dims[d].pctB);
+      });
+  };
+  if (!usableResult(res) && answers && answeredCount(answers)) {
+    res = computeResult(answers, getStoreAs(STORAGE_KEYS.mode, 'string') || DEFAULT_MODE,
+      getStoreAs(STORAGE_KEYS.set, 'array'));
+  }
+  if (!usableResult(res) || answeredCount(answers || {}) === 0) {
+    var mainBox = $('#resultMain');
+    if (mainBox) {
+      mainBox.innerHTML = '<div class="desc-card"><h2>结果数据不完整</h2>' +
+        '<p class="desc-text">本地保存的结果读不出来（可能被浏览器清理或被其它程序改动）。' +
+        '重新测一次只要几分钟 ✨</p>' +
+        '<p><a class="btn btn-primary" href="index.html">返回首页重新测试</a></p></div>';
+    }
+    var eggBox = $('#easterCard');
+    if (eggBox) eggBox.style.display = 'none';
     return;
   }
 
   // 本地完成人数 +1
-  setStore(STORAGE_KEYS.completions, (Number(getStore(STORAGE_KEYS.completions) || 0)) + 1);
+  setStore(STORAGE_KEYS.completions, getStoreAs(STORAGE_KEYS.completions, 'number', 0) + 1);
 
   if (res.easterEgg) {
     $('#resultMain').style.display = 'none';
@@ -1452,7 +1560,7 @@ function renderConfidence(res) {
   var rows = DIMS.map(function (dim) {
     var d = res.dims[dim];
     var cls = d.confidence >= 70 ? 'high' : (d.confidence >= 45 ? 'mid' : 'low');
-    /* 侧面一致性：4 个内容侧面是否指向同一端（分歧大 = 结果不稳） */
+    /* 侧面一致性：各内容侧面（每维 5 个）是否指向同一端（分歧大 = 结果不稳） */
     var facetTxt = d.facetSummary + ' 侧面同向';
     var facetCls = d.facetAgreement >= 1 ? 'ok' : (d.facetAgreement >= 0.75 ? 'soso' : 'split');
     return '<div class="conf-row">' +
@@ -1476,7 +1584,7 @@ function renderConfidence(res) {
     note += ' 检测到 ' + res.consistencyIssues + ' 组语义相反的题目答案互相矛盾，可能说明你在这些维度上确实比较居中。';
   }
 
-  wrap.innerHTML = '<h4>🎯 结果可靠度</h4>' + rows +
+  wrap.innerHTML = '<h2>🎯 结果可靠度</h2>' + rows +
     '<p class="gc-text conf-note">' + note + '</p>';
 
   requestAnimationFrame(function () {
@@ -1568,13 +1676,13 @@ function renderReportSections(res) {
   // 4. 职业规划
   html += gcCard('💼 职业规划',
     '<p class="gc-text">' + (g.workStyle || '') + '</p>' +
-    '<h5 class="gc-sub">🎯 推荐岗位</h5>' + gcChips(g.roles) +
-    '<h5 class="gc-sub">📈 职业建议</h5>' + gcNumList(g.careerTips));
+    '<h3 class="gc-sub">🎯 推荐岗位</h3>' + gcChips(g.roles) +
+    '<h3 class="gc-sub">📈 职业建议</h3>' + gcNumList(g.careerTips));
 
   // 5. 人生指导
   html += gcCard('🧭 人生指导',
-    '<h5 class="gc-sub">🌱 成长方向</h5>' + gcNumList(g.lifeTips) +
-    '<h5 class="gc-sub">🤝 人际相处</h5><p class="gc-text">' + (g.relationTip || '') + '</p>' +
+    '<h3 class="gc-sub">🌱 成长方向</h3>' + gcNumList(g.lifeTips) +
+    '<h3 class="gc-sub">🤝 人际相处</h3><p class="gc-text">' + (g.relationTip || '') + '</p>' +
     '<p class="gc-quote">「' + (extra.tagline || '') + '」</p>');
 
   wrap.innerHTML = html;
@@ -1600,7 +1708,9 @@ function profileOf(letters) {
 
 /* 历史记录：最近 10 次（用于复测对比） */
 function pushHistory(res) {
-  var list = getStore(STORAGE_KEYS.history) || [];
+  /* history 被外部写成数字/字符串时，`list.unshift` 会抛异常导致"永远无法交卷" */
+  var list = getStoreAs(STORAGE_KEYS.history, 'array', []);
+  if (!res || !res.letters || !res.dims || !DIMS.every(function (d) { return res.dims[d]; })) return;
   var entry = {
     t: Date.now(),
     mode: res.mode,
@@ -1711,7 +1821,7 @@ function renderChecklist(res, p) {
     return;
   }
   var key = res.letters;
-  var all = getStore(STORAGE_KEYS.checklist) || {};
+  var all = getStoreAs(STORAGE_KEYS.checklist, 'object', {}) || {};
   var checked = all[key] || [];
   wrap.innerHTML = '';
 
@@ -1743,7 +1853,7 @@ function renderChecklist(res, p) {
 function updateChecklistProgress(key, total) {
   var el = $('#clProgress');
   if (!el) return;
-  var all = getStore(STORAGE_KEYS.checklist) || {};
+  var all = getStoreAs(STORAGE_KEYS.checklist, 'object', {}) || {};
   var arr = all[key] || [];
   var pct = total ? Math.round(arr.length / total * 100) : 0;
   el.textContent = arr.length + ' / ' + total + ' · ' + pct + '%';
@@ -2236,7 +2346,7 @@ function copyShareText(res) {
    报告分区构建工具（图标卡片 / chips / 编号清单 / 进度条）
    ============================================================ */
 function gcCard(title, inner) {
-  return '<div class="gc-card"><h4>' + title + '</h4>' + inner + '</div>';
+  return '<div class="gc-card"><h2>' + title + '</h2>' + inner + '</div>';
 }
 function gcChips(items) {
   return '<div class="gc-chips">' + (items || []).map(function (s) {
@@ -2534,14 +2644,14 @@ function renderRelationResult() {
       '</div>' +
       (res.golden ? '<p class="gc-text">按常见配对观点，你们属于互补型组合：一个补上对方忽略的一面。</p>' : '') +
     '</div>' +
-    '<div class="gc-card"><h4>🤝 共同点</h4>' +
+    '<div class="gc-card"><h2>🤝 共同点</h2>' +
       (res.common.length ? list(res.common) : '<p class="gc-text">四个维度全部相反——你们几乎没有"默认共识"，默契需要刻意建立。</p>') +
     '</div>' +
-    '<div class="gc-card"><h4>🔀 差异与互补</h4>' +
+    '<div class="gc-card"><h2>🔀 差异与互补</h2>' +
       (res.complement.length ? list(res.complement) : '<p class="gc-text">四个维度完全一致，沟通成本很低，但要注意别互相强化盲区。</p>') +
     '</div>' +
-    '<div class="gc-card"><h4>⚠️ 容易踩的坑</h4>' + list(res.cautions) + '</div>' +
-    '<div class="gc-card"><h4>✅ 三条相处建议</h4>' + list(res.tips) + '</div>';
+    '<div class="gc-card"><h2>⚠️ 容易踩的坑</h2>' + list(res.cautions) + '</div>' +
+    '<div class="gc-card"><h2>✅ 三条相处建议</h2>' + list(res.tips) + '</div>';
 }
 
 function buildRelationMatrix() {

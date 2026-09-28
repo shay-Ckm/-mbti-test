@@ -255,7 +255,7 @@ img { max-width:100%; height:auto; }
   opacity:.55;
 }
 .result-duo { display:grid; grid-template-columns:1fr 1fr; gap:var(--card-gap); }
-.desc-card h3, .gc-card h4, .conf-panel h4, .fact-card h3 {
+.desc-card h2, .gc-card h2, .conf-panel h2, .fact-card h2 {
   display:flex; align-items:center; gap:10px;
   font-size:1rem; font-weight:700; color:var(--text-1); letter-spacing:.01em; margin:0 0 14px;
 }
@@ -425,7 +425,7 @@ img { max-width:100%; height:auto; }
 .milestone.show { opacity:1; }
 .radar-wrap { padding:var(--sp-5); display:flex; flex-direction:column; justify-content:center; }
 .radar-txt { display:grid; gap:6px; justify-items:center; }
-.radar-txt h3, .live-head h3, .jump-head span:first-child {
+.radar-txt h2, .live-head h2, .jump-head span:first-child {
   font-size:.78rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
   color:var(--text-4); margin:0;
 }
@@ -765,7 +765,7 @@ body.theme-glass :is(
 }
 /* 文字色阶 */
 body.theme-glass :is(
-  .desc-card h3, .gc-card h4, .conf-panel h4, .fact-card h3, .easter-card h2,
+  .desc-card h2, .gc-card h2, .conf-panel h2, .fact-card h2, .easter-card h2,
   .trait-label, .conf-label, .lb-label, .live-letters, .q-text, .si-title, .mi-title, .opt
 ) { color:#FFFFFF; }
 body.theme-glass :is(
@@ -774,7 +774,7 @@ body.theme-glass :is(
 ) { color:rgba(255,255,255,.84); }
 body.theme-glass :is(
   .gc-sub, .trait-pct, .cl-tip, .conf-note, .live-bubble, .jump-hint, .radar-hint,
-  .ed-val, .easter-hint, .radar-txt h3, .live-head h3, .jump-head span:first-child,
+  .ed-val, .easter-hint, .radar-txt h2, .live-head h2, .jump-head span:first-child,
   .cf-tag, .hist-delta, .hi-dim, .hi-val.right, .rel-tab, .opt-tag, .m-zh, .type-en
 ) { color:rgba(255,255,255,.62); }
 body.theme-glass :is(.cl-item.done .cl-text) { color:rgba(255,255,255,.45); }
@@ -948,7 +948,7 @@ body.theme-glass :is(.btn-ghost:hover, .btn.ghost:hover) {
     break-inside:avoid; page-break-inside:avoid;
   }
   .gc-card::before, .desc-card::before, .q-card::before { display:none !important; }
-  .desc-card h3, .gc-card h4, .conf-panel h4, .fact-card h3, .mi-title, .si-title { color:#333 !important; }
+  .desc-card h2, .gc-card h2, .conf-panel h2, .fact-card h2, .mi-title, .si-title { color:#333 !important; }
   .desc-text, .gc-text, .gc-li-text, .trait-label, .trait-pct, .cl-text,
   .conf-label, .conf-val, .lb-label, .lb-val, .rel-text { color:#222 !important; }
   .trait-fill, .conf-fill, .lb-fill, .rel-bar i, .gc-fill { box-shadow:none !important; }

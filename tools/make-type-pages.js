@@ -105,8 +105,8 @@ function buildPage(code) {
   <meta name="twitter:image" content="${SITE}assets/og-image.png">
   <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
   <link rel="preload" as="font" type="font/woff2" href="../assets/fonts/inter-var.woff2" crossorigin>
-  <link rel="stylesheet" href="../assets/fonts/fonts.css?v=5.0.1">
-  <link rel="stylesheet" href="../style.css?v=5.0.1">
+  <link rel="stylesheet" href="../assets/fonts/fonts.css?v=5.1.0">
+  <link rel="stylesheet" href="../style.css?v=5.1.0">
 </head>
 <body id="page-type" style="--tcolor:${e.color};--tcolor-ink:${e.ink || e.color};--tcolor-soft:${e.soft}">
   <a class="skip-link" href="#main">跳到主内容</a>
@@ -126,45 +126,45 @@ function buildPage(code) {
     </header>
 
     <div class="desc-card">
-      <h3>📖 关于你</h3>
+      <h2>📖 关于你</h2>
       <p class="desc-text">${esc(t.desc)}</p>
     </div>
 
     <div class="result-duo">
-      <div class="desc-card"><h3>⚡ 优势清单</h3>${ul(g.strengths)}</div>
-      <div class="desc-card"><h3>⚠️ 注意点</h3>${ul(g.weaknesses)}</div>
+      <div class="desc-card"><h2>⚡ 优势清单</h2>${ul(g.strengths)}</div>
+      <div class="desc-card"><h2>⚠️ 注意点</h2>${ul(g.weaknesses)}</div>
     </div>
 
-    <div class="gc-card"><h4>🧬 内在驱动力</h4><p class="gc-text">${esc(g.drive)}</p></div>
+    <div class="gc-card"><h2>🧬 内在驱动力</h2><p class="gc-text">${esc(g.drive)}</p></div>
 
     <div class="result-duo">
-      <div class="desc-card"><h3>🦸 隐藏超能力</h3><p class="desc-text">${esc(e.superpower)}</p></div>
-      <div class="desc-card"><h3>🧗 进阶修炼</h3><p class="desc-text">${esc(e.growth)}</p></div>
+      <div class="desc-card"><h2>🦸 隐藏超能力</h2><p class="desc-text">${esc(e.superpower)}</p></div>
+      <div class="desc-card"><h2>🧗 进阶修炼</h2><p class="desc-text">${esc(e.growth)}</p></div>
     </div>
 
     <div class="gc-card">
-      <h4>💼 职业规划</h4>
+      <h2>💼 职业规划</h2>
       <p class="gc-text">${esc(g.workStyle)}</p>
-      <h5 class="gc-sub">🎯 推荐岗位</h5>${chips(g.roles)}
-      <h5 class="gc-sub">📈 职业建议</h5>${ol(g.careerTips)}
+      <h3 class="gc-sub">🎯 推荐岗位</h3>${chips(g.roles)}
+      <h3 class="gc-sub">📈 职业建议</h3>${ol(g.careerTips)}
     </div>
 
     <div class="gc-card">
-      <h4>🧭 人生指导</h4>
-      <h5 class="gc-sub">🌱 成长方向</h5>${ol(g.lifeTips)}
-      <h5 class="gc-sub">🤝 人际相处</h5><p class="gc-text">${esc(g.relationTip)}</p>
+      <h2>🧭 人生指导</h2>
+      <h3 class="gc-sub">🌱 成长方向</h3>${ol(g.lifeTips)}
+      <h3 class="gc-sub">🤝 人际相处</h3><p class="gc-text">${esc(g.relationTip)}</p>
     </div>
 
     <div class="gc-card">
-      <h4>💞 关系与社交</h4>
-      <h5 class="gc-sub">💗 恋爱</h5><p class="gc-text">${esc(rel.love)}</p>
-      <h5 class="gc-sub">🤝 友谊</h5><p class="gc-text">${esc(rel.friend)}</p>
-      <h5 class="gc-sub">🏠 家庭</h5><p class="gc-text">${esc(rel.family)}</p>
-      <h5 class="gc-sub">💼 职场协作</h5><p class="gc-text">${esc(rel.work)}</p>
+      <h2>💞 关系与社交</h2>
+      <h3 class="gc-sub">💗 恋爱</h3><p class="gc-text">${esc(rel.love)}</p>
+      <h3 class="gc-sub">🤝 友谊</h3><p class="gc-text">${esc(rel.friend)}</p>
+      <h3 class="gc-sub">🏠 家庭</h3><p class="gc-text">${esc(rel.family)}</p>
+      <h3 class="gc-sub">💼 职场协作</h3><p class="gc-text">${esc(rel.work)}</p>
     </div>
 
     <div class="gc-card">
-      <h4>🌊 压力下的你</h4>
+      <h2>🌊 压力下的你</h2>
       <div class="stress-grid">
         <div class="stress-item"><span class="si-ico">🚨</span><div class="si-body"><b class="si-title">压力信号</b><p class="gc-text">${esc(stress.signal)}</p></div></div>
         <div class="stress-item"><span class="si-ico">🌀</span><div class="si-body"><b class="si-title">典型反应</b><p class="gc-text">${esc(stress.react)}</p></div></div>
@@ -173,7 +173,7 @@ function buildPage(code) {
     </div>
 
     <div class="gc-card">
-      <h4>🔍 更多画像</h4>
+      <h2>🔍 更多画像</h2>
       <div class="more-grid">
         <div class="more-item"><b class="mi-title">💬 沟通风格</b><p class="gc-text">${esc(p.comm)}</p></div>
         <div class="more-item"><b class="mi-title">🧩 团队角色</b><p class="gc-text">${esc(p.team)}</p></div>
@@ -183,7 +183,7 @@ function buildPage(code) {
     </div>
 
     <div class="gc-card">
-      <h4>✅ 成长清单</h4>
+      <h2>✅ 成长清单</h2>
       <div class="checklist-static">
         ${(p.checklist || []).map(s => '<div class="cl-item-static"><span class="cl-box" aria-hidden="true"></span><span class="cl-text">' + esc(s) + '</span></div>').join('')}
       </div>
@@ -192,7 +192,7 @@ function buildPage(code) {
 
     <div class="fact-card">
       <span class="fact-icon">💡</span>
-      <div><h3>冷知识</h3><p>${esc(t.fact)}</p></div>
+      <div><h2>冷知识</h2><p>${esc(t.fact)}</p></div>
     </div>
 
     <div class="actions">
@@ -202,7 +202,7 @@ function buildPage(code) {
       <a class="btn btn-ghost" href="../index.html">🏠 返回首页</a>
     </div>
 
-    <h3 class="section-title">✦ 其他 15 种人格 ✦</h3>
+    <h2 class="section-title">✦ 其他 15 种人格 ✦</h2>
     ${typeNav(code)}
 
     <p class="result-note">MBTI 是偏好参考，不是科学判刑；人格是流动的，别让标签定义你 😉</p>

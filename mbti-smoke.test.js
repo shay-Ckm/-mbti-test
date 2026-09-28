@@ -374,6 +374,134 @@ store['mbti_set'] = JSON.stringify(deepSet.map(q => q.id));
       /%/.test(elements['#easterDims'].innerHTML) && /居中/.test(elements['#easterDims'].innerHTML),
       elements['#easterDims'].innerHTML.slice(0, 80));
 
+    /* ============================================================
+       F. 存储污染 / 异常输入不得让页面失效
+       （对应审计发现：污染 localStorage 曾导致"点了没反应"、"永远交不了卷"、
+         "整页白屏"、"题库加载失败反被当成升级而删数据"）
+       ============================================================ */
+
+    // F1. mbti_answers 被写成字符串 → 仍能作答（自愈为空对象），不再抛异常
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    store['mbti_answers'] = JSON.stringify('abc');
+    document.body.id = 'page-test';
+    api.init();
+    const kdF = docListeners.keydown || [];
+    let clickThrew = false;
+    try { kdF.forEach(fn => fn({ key: '2', target: null })); } catch (e) { clickThrew = true; }
+    check('answers 被污染成字符串仍可作答（不抛异常）', !clickThrew);
+    check('污染后的进度正常推进', /^1 \/ 64$/.test(elements['#qDone'].textContent.trim()),
+      elements['#qDone'].textContent);
+    check('污染值被自愈为对象', (() => {
+      const a = JSON.parse(store['mbti_answers'] || '{}');
+      return a && typeof a === 'object' && !Array.isArray(a) && Object.keys(a).length === 1;
+    })(), store['mbti_answers']);
+
+    // F2. mbti_set 被写成字符串 → 重建题集而不是白屏
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    store['mbti_set'] = JSON.stringify('abc');
+    document.body.id = 'page-test';
+    api.init();
+    check('题集被污染成字符串时重建题集（页面不白屏）',
+      Array.isArray(JSON.parse(store['mbti_set'] || 'null')) &&
+      JSON.parse(store['mbti_set']).length === 64 &&
+      elements['#options'].children.length > 0,
+      'set=' + (store['mbti_set'] || '').slice(0, 20) + ' 选项=' + elements['#options'].children.length);
+
+    /* 导航计数：把 window.location.href 换成带 setter 的属性，统计真实跳转次数 */
+    let navCount = 0;
+    Object.defineProperty(global.window.location, 'href', {
+      configurable: true,
+      get() { return this._href || ''; },
+      set(v) { this._href = v; navCount++; }
+    });
+    const clearToast = () => { if (elements['#toast']) elements['#toast'].textContent = ''; };
+    /* 记录所有 toast 文案：测试桩会累积历史监听器（多次 init 后同一个按钮上挂着多个
+       click 处理器），后执行的处理器可能覆盖前者写下的文案，因此断言"曾写过"而不是"最后一条"。 */
+    const toastLog = [];
+    Object.defineProperty(elements['#toast'], 'textContent', {
+      configurable: true,
+      get() { return this._tc || ''; },
+      set(v) { this._tc = v; toastLog.push(v); }
+    });
+
+    // F3. mbti_history 被写成数字 → 仍能交卷并跳转
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    store['mbti_history'] = JSON.stringify(5);
+    await new Promise(r => setTimeout(r, 400));   // 先排空前序用例遗留的导航定时器
+    navCount = 0;
+    answerAll(q => (q.dir < 0 ? '1' : '5'));
+    await new Promise(r => setTimeout(r, 320));   // navigate() 有 250ms 延迟
+    check('history 被污染成数字仍能交卷', !!JSON.parse(store['mbti_result'] || 'null'),
+      String(!!JSON.parse(store['mbti_result'] || 'null')));
+    check('交卷后跳转到结果页（1 次）', navCount === 1 && /result\.html/.test(global.window.location.href),
+      'navs=' + navCount + ' href=' + global.window.location.href);
+
+    // F4. 交卷不幂等会重复导航 → 连点 3 次只跳一次
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    navCount = 0;
+    answerAll(q => (q.dir < 0 ? '1' : '5'));
+    fire(elements['#nextBtn'], 'click');
+    fire(elements['#nextBtn'], 'click');
+    await new Promise(r => setTimeout(r, 320));
+    check('连点"查看结果"只交卷一次（导航幂等）', navCount === 1,
+      'navs=' + navCount + ' href=' + global.window.location.href);
+
+    // F5. 完成度门槛：跳到末题只答这 1 题就交卷 → 拦住、不生成结果、不出类型
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    navCount = 0;
+    document.body.id = 'page-test';
+    api.init();
+    const kdF5 = docListeners.keydown || [];
+    const dots = elements['#jumpGrid'].children.slice(-64);          // 桩会累积，取最后 64 个
+    fire(dots[dots.length - 1], 'click');                            // 跳到最后一题
+    kdF5.forEach(fn => fn({ key: '2', target: null }));              // 只答这一题
+    clearToast();
+    fire(elements['#nextBtn'], 'click');                             // 末题按钮 = 查看结果
+    await new Promise(r => setTimeout(r, 150));
+    check('只答 1 题时被完成度门槛拦住（不生成结果）',
+      JSON.parse(store['mbti_result'] || 'null') === null,
+      String(store['mbti_result'] || '（未写入）'));
+    check('被拦下时不跳转结果页', navCount === 0, 'navs=' + navCount + ' href=' + global.window.location.href);
+    check('被拦下时给出提示文案', toastLog.some(m => /未作答/.test(m)),
+      toastLog.slice(-2).join(' | ') || '（无文案）');
+    /* 门槛会把用户带到"第一道未答题"：本用例只答了末题，所以第一道未答题就是第 1 题
+       （注意：桩会把 `i + 1` 原样存成数字，这里用 String() 归一后再比较） */
+    check('被拦下后跳到第一道未答题（第 1 题）',
+      String(elements['#qCurrent'].textContent) === '1',
+      '#qCurrent=' + elements['#qCurrent'].textContent + ' #qNum=' + elements['#qNum'].textContent);
+
+    // F6. 题库加载失败不得被当成"题库升级"而删掉用户数据
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    store['mbti_result'] = JSON.stringify({ letters: 'ESTJ', dims: {} });
+    const bankBackup = global.QUESTIONS;
+    global.QUESTIONS = [];                       // 模拟 data/questions.js 未加载成功
+    document.body.id = 'page-test';
+    api.init();
+    check('题库加载失败时不删除用户已保存结果', !!store['mbti_result'], String(store['mbti_result'] || '（被删）'));
+    check('题库加载失败时不把版本号写成 0',
+      JSON.parse(store['mbti_bank_version'] || 'null') === qbank.BANK_VERSION,
+      String(store['mbti_bank_version']));
+    global.QUESTIONS = bankBackup;
+
+    // F7. result 结构被截断 → 给出可读提示而不是白屏
+    resetStore();
+    store['mbti_bank_version'] = JSON.stringify(qbank.BANK_VERSION);
+    store['mbti_result'] = JSON.stringify({ letters: 'ESTJ' });   // 缺 dims
+    document.body.id = 'page-result';
+    elements['#resultMain'].style.display = '';
+    elements['#resultMain'].innerHTML = '';
+    let resultThrew = false;
+    try { api.init(); } catch (e) { resultThrew = true; }
+    check('截断的 result 不让结果页抛异常', !resultThrew);
+    check('截断的 result 给出可读提示', /结果数据不完整/.test(elements['#resultMain'].innerHTML || ''),
+      (elements['#resultMain'].innerHTML || '').slice(0, 60));
+
     /* ---- 等待异步动画回调 ---- */
     await new Promise(r => setTimeout(r, 120));
     check('异步动画回调无异常', true);

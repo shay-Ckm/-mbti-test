@@ -7,7 +7,7 @@
    - 4 个维度齐备，每维 50 题；id 全局唯一且不重复
    - 每题字段完整：id/dim/dir/facet/pair/text；dir 为 ±1
    - 每维两极 25:25；每个 facet 10 题且两极 5:5
-   - 题面 12–24 字；无对比句式；每题否定词 ≤ 1
+   - 题面 16–34 字；无对比句式；每题否定词 ≤ 1
    - pair 必须成对（同一 pair 恰好 2 题、同维、方向相反）
    ============================================================ */
 'use strict';
@@ -48,7 +48,7 @@ items.forEach(q => {
   if (ids.has(q.id)) fail('id 重复：' + q.id);
   ids.add(q.id);
   const len = String(q.text || '').length;
-  if (len < 12 || len > 24) fail(q.id + ' 题面长度 ' + len + '（需 12–24 字）');
+  if (len < 16 || len > 34) fail(q.id + ' 题面长度 ' + len + '（需 16–34 字）');
   if (COMPARATIVE.test(q.text)) fail(q.id + ' 含对比句式：' + q.text);
   const neg = (String(q.text).match(/[不没别]/g) || []).length;
   if (neg > 1) fail(q.id + ' 否定词 ' + neg + ' 个（需 ≤1）');

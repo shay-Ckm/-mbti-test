@@ -445,5 +445,81 @@ console.log('MBTI 逻辑测试 v2\n');
   assert('镜像题选不确定 → 不计入矛盾', computeResult(neutral, 'deep').consistencyIssues === 0);
 }
 
+/* 10. 输入健壮性（防存储污染 / 非法值）
+   这些用例对应审计发现：computeResult 对作答值零校验时，
+   字符串会走 `+=` 拼接（实测 pctB = -34722147）、NaN/Infinity 会让整条链路出现 NaN。 */
+{
+  const set = buildQuestionSet('deep');
+  const ids = set.map(q => q.id);
+  const finite = v => typeof v === 'number' && isFinite(v);
+
+  /* 10.1 非法作答值一律按"未作答"处理 */
+  const hostile = {};
+  set.forEach((q, i) => {
+    const bad = [NaN, Infinity, -Infinity, 1e308, 100, -100, true, false, null, undefined, 'abc', {}, []][i % 13];
+    hostile[q.id] = bad;
+  });
+  const hr = computeResult(hostile, 'deep', ids);
+  assert('非法值不产生 NaN/Infinity（pctB 全为有限值）',
+    DIMS.every(d => finite(hr.dims[d].pctB)), DIMS.map(d => d + ':' + hr.dims[d].pctB).join(' '));
+  assert('非法值不计入已答', hr.answered === 0, 'answered=' + hr.answered);
+  assert('非法值下四维落点居中 50%', DIMS.every(d => hr.dims[d].pctB === 50));
+  assert('非法值不产生越界百分比（0–100）',
+    DIMS.every(d => hr.dims[d].pctB >= 0 && hr.dims[d].pctB <= 100 && hr.dims[d].strength >= 0 && hr.dims[d].strength <= 100));
+  assert('非法值下置信度仍为有限值', finite(hr.overallConfidence) && hr.overallConfidence >= 0 && hr.overallConfidence <= 100,
+    String(hr.overallConfidence));
+
+  /* 10.2 数值字符串（旧数据形态）被接受，但绝不发生字符串拼接 */
+  const strAns = {};
+  set.filter(q => q.dim === 'EI').forEach((q, i) => { strAns[q.id] = i % 2 === 0 ? '3' : '-3'; });
+  const sr = computeResult(strAns, 'deep', ids);
+  assert('数值字符串被解析为数值（不是拼接）',
+    finite(sr.dims.EI.score) && Math.abs(sr.dims.EI.score) <= 3 && sr.dims.EI.answered === sr.dims.EI.total,
+    'score=' + sr.dims.EI.score + ' answered=' + sr.dims.EI.answered);
+
+  /* 10.3 题集去重：重复 id 不会被算多遍 */
+  const dup = computeResult(answersFor(set, 'first'), 'deep', ids.concat(ids, ids));
+  assert('重复题集被去重（answered 不膨胀）',
+    DIMS.every(d => dup.dims[d].answered === dup.dims[d].total),
+    DIMS.map(d => d + ':' + dup.dims[d].answered + '/' + dup.dims[d].total).join(' '));
+  assert('计分题数不超过分母（scored ≤ total）',
+    DIMS.every(d => dup.dims[d].scored <= dup.dims[d].total));
+
+  /* 10.4 题集含未知/非字符串元素时被忽略 */
+  const dirty = computeResult(answersFor(set, 'first'), 'deep',
+    ids.slice(0, 40).concat(['q999', 'nope', null, undefined, 42, {}, '', 'q001']));
+  assert('题集里的未知/非法元素被忽略（不崩、计数自洽）',
+    DIMS.every(d => finite(dirty.dims[d].pctB) && dirty.dims[d].answered > 0 &&
+      dirty.dims[d].answered <= dirty.dims[d].total &&
+      dirty.dims[d].scored + dirty.dims[d].neutral === dirty.dims[d].answered),
+    DIMS.map(d => d + ':' + dirty.dims[d].answered + '/' + dirty.dims[d].total).join(' '));
+  assert('题集外的作答不计入（截断题集后每维只算 10 题）',
+    DIMS.every(d => dirty.dims[d].answered === 10), DIMS.map(d => d + ':' + dirty.dims[d].answered).join(' '));
+
+  /* 10.5 空作答 / 空题集 / 非法档位不崩 */
+  const empty = computeResult({}, 'deep', []);
+  assert('空作答不崩且四维居中', DIMS.every(d => empty.dims[d].pctB === 50) && empty.easterEgg === true,
+    'letters=' + empty.letters + ' egg=' + empty.easterEgg);
+  assert('非法档位回退到默认档', computeResult({}, 'bogus').mode === 'deep');
+  assert('answers 为 null/数组/字符串时不崩',
+    computeResult(null, 'deep').letters.length === 4 &&
+    computeResult([], 'deep').letters.length === 4 &&
+    computeResult('x', 'deep').letters.length === 4);
+
+  /* 10.6 全选"不确定"：不计分但计入已答，置信度为 0 */
+  const allNeutral = {};
+  set.forEach(q => { allNeutral[q.id] = 0; });
+  const nr = computeResult(allNeutral, 'deep', ids);
+  assert('全选不确定 → 计分题数为 0、已答满、置信度 0',
+    DIMS.every(d => nr.dims[d].scored === 0 && nr.dims[d].neutral === nr.dims[d].total) &&
+    nr.answered === set.length && nr.overallConfidence === 0,
+    'answered=' + nr.answered + ' conf=' + nr.overallConfidence);
+  assert('全选不确定 → 走"框不住你"彩蛋（而不是硬给类型）', nr.easterEgg === true);
+
+  /* 10.7 answeredCount 只认合法值 */
+  assert('answeredCount 忽略非法值', api.answeredCount({ a: 3, b: 'x', c: null, d: undefined, e: 0, f: NaN }) === 2,
+    String(api.answeredCount({ a: 3, b: 'x', c: null, d: undefined, e: 0, f: NaN })));
+}
+
 console.log('\n结果：' + pass + ' 通过，' + fail + ' 失败');
 if (fail > 0) process.exit(1);

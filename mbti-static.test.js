@@ -153,7 +153,15 @@ console.log('MBTI 静态契约测试\n');
 
   check('每题字段完整（id/dim/dir/facet/pair/text）',
     qbank.QUESTIONS.every(q => q.id && q.dim && (q.dir === 1 || q.dir === -1) &&
-      q.facet && ('pair' in q) && typeof q.text === 'string' && q.text.length >= 12 && q.text.length <= 24));
+      q.facet && ('pair' in q) && typeof q.text === 'string' && q.text.length >= 16 && q.text.length <= 34));
+  /* 场景线索 = 角色 / 场合 / 时间锚点 / 数量 四类任一命中（宽松护栏，防止题面退回抽象自评） */
+  const SCENE = /(老板|同事|朋友|家人|同学|客户|新人|组员|合伙人|供应商|甲方|邻居|店员|老师|室友|父母|孩子|伴侣|队友|亲戚|陌生人|会议|开会|晨会|聚会|饭局|排队|出差|旅行|加班|周末|下班|上班|通勤|地铁|公交|电梯|办公室|群|微信|电话|邮件|课堂|路上|睡前|晚上|早上|中午|假期|餐厅|菜单|KTV|包间|生日|搬家|宿舍|超市|商场|医院|机场|车站|书架|说明书|设备|咖啡机|馆子|牌子|报表|论文|答辩|作业|项目|方案|offer|入职|面试|汇报|分工|行程|日程|书房|钥匙|扶手|定居|饭|课|班|店|团建|年会|沙龙|直播|视频|报道|灵感|消息|建议|意见|会|局|餐|购物|健身|运动)/;
+  const SCENE_TIME = /(时|前|后|第一|每|周|月|年|天|点|分钟|秒|号|初|末|中旬|下周|上个月|这周|今晚|昨天|明天|后天|常常|经常|一般|通常|大多|多数)/;
+  const SCENE_NUM = /(一|两|三|几|多|半|十)/;
+  const noScene = qbank.QUESTIONS.filter(q => !SCENE.test(q.text) && !SCENE_TIME.test(q.text) && !SCENE_NUM.test(q.text));
+  check('题目描述落到具体场景（角色/场合/时间/数量线索 ≥90%）',
+    noScene.length <= qbank.QUESTIONS.length * 0.1,
+    noScene.length + ' 题缺少场景线索：' + noScene.slice(0, 3).map(q => q.id + ' ' + q.text).join(' / '));
   check('题目 id 唯一', new Set(qbank.QUESTIONS.map(q => q.id)).size === qbank.QUESTIONS.length,
     new Set(qbank.QUESTIONS.map(q => q.id)).size + '/' + qbank.QUESTIONS.length);
   check('题干无对比句式（而不是/比起/比…更重要）',
@@ -420,6 +428,33 @@ console.log('MBTI 静态契约测试\n');
   check('样式定义 .skip-link（默认隐藏、聚焦显示）',
     /\.skip-link\s*\{/.test(css) && /\.skip-link:focus\s*\{/.test(css));
 
+  /* 标题层级：必须配对，且不得跳级（h1 → h2 → h3…）
+     审计发现：类型页/结果页/答题页曾系统性 h1 → h3（甚至 h1 → h4），
+     读屏软件按标题导航时会把区块标题误读成 h1 的子项。 */
+  ALL_PAGES.concat(['404.html', 'types/intj.html']).forEach(p => {
+    const tags = (read(p).match(/<(\/?)h([1-6])\b[^>]*>/g) || []);
+    const stack = [];
+    let bad = '';
+    tags.forEach(t => {
+      const m = /<(\/?)h([1-6])/.exec(t);
+      const lvl = Number(m[2]);
+      if (m[1]) {
+        const open = stack.pop();
+        if (open !== lvl && !bad) bad = '</h' + lvl + '> 与 <h' + open + '> 不配对';
+      } else {
+        if (stack.length && lvl > stack[stack.length - 1] + 1 && !bad) {
+          bad = 'h' + stack[stack.length - 1] + ' → h' + lvl + ' 跳级';
+        }
+        while (stack.length && stack[stack.length - 1] >= lvl) stack.pop();
+        stack.push(lvl);
+      }
+    });
+    if (!bad && stack.length) bad = '有未闭合的标题标签';
+    check(p + ' 标题层级配对且不跳级', !bad, bad);
+  });
+  check('卡片标题使用 h2（与 h1 之间不跳级）',
+    /<h2>📖 关于你<\/h2>/.test(pages['result.html']) && /<h2 class="section-title/.test(pages['result.html']));
+
   const testPg = pages['test.html'];
   check('答题页进度条为 progressbar 并带 ARIA 值',
     /role="progressbar"/.test(testPg) && /aria-valuenow/.test(testPg) && /aria-valuemax/.test(testPg));
@@ -464,7 +499,7 @@ console.log('MBTI 静态契约测试\n');
   const firstLoad = ['index.html', 'style.css', 'script.js', 'data/questions.js', 'data/profile.js',
     'assets/fonts/fonts.css', 'assets/fonts/inter-var.woff2'].reduce((s, f) => s + size(f), 0);
   check('首屏载荷 < 400KB（当前 ' + (firstLoad / 1024).toFixed(1) + 'KB）', firstLoad < 400 * 1024);
-  check('script.js < 130KB', size('script.js') < 130 * 1024, (size('script.js') / 1024).toFixed(1) + 'KB');
+  check('script.js < 140KB', size('script.js') < 140 * 1024, (size('script.js') / 1024).toFixed(1) + 'KB');
   check('style.css < 60KB', size('style.css') < 60 * 1024, (size('style.css') / 1024).toFixed(1) + 'KB');
   check('字体已预加载且为单文件可变字体', /rel="preload"[^>]*inter-var\.woff2/.test(pages['index.html']));
 

@@ -40,6 +40,10 @@ const UNIVERSAL = ['一顿好饭', '散步', '真诚', '享受', '愿意', '喜�
 /* 构念污染词：这些词指向焦虑/神经质/尽责性等"非目标构念"，混进题目会带来无关变异 */
 const NUSANCE = ['慌张', '紧张', '焦虑', '担心', '害怕', '羞', '尴尬', '拖延', '懒', '自律', '效率', '时间管理', '强迫'];
 
+/* 具体场景线索：题目落到"什么场合、对谁、什么时候、多少"更利于稳定作答（v5 起要求） */
+const SCENE = /(开会|晨会|会议|聚会|饭局|排队|出差|旅行|加班|周末|下班|上班|通勤|地铁|公交|电梯|办公室|同事|朋友|家人|邻居|同学|客户|店员|陌生|微信|群聊|电话|邮件|课上|课堂|路上|睡前|晚上|早上|中午|假期|第一|每次|经常|常常|大多|多数|二十|几个|一半|两三个|大巴|长途|桌游|团建|邻座|课|班|部门|小组|饭桌|餐桌|逛街|超市|商场|健身房|球场|宿舍|租房|装修|点餐|外卖|网购|快递|客服|面试|汇报|评审|投票|报名|签到|作业|考试|复习|论文|方案|需求|排期|交接|值班|轮岗|前台|走廊|电梯口|停车场|机场|车站|医院|银行|理发|体检|家长会|婚礼|生日|过年|节日|假期|放假|台风|下雨|停电|搬家|换工作|跳槽|创业|理财|记账|存钱|买菜|做饭|洗碗|打扫|收纳|闹钟|日程|待办|备忘|清单)/;
+const ANCHOR_MISSING = list => list.filter(q => !SCENE.test(q.text));
+
 let issues = 0;
 const flag = (msg) => { issues++; console.log('  ⚠ ' + msg); };
 const head = (t) => console.log('\n== ' + t + ' ==');
@@ -47,23 +51,40 @@ const head = (t) => console.log('\n== ' + t + ' ==');
 /* ---------- 1. 结构 ---------- */
 head('结构统计');
 console.log('  总题数 ' + QUESTIONS.length + '   版本 ' + bank.BANK_VERSION);
+/* v4 起没有 quick 标记：两档共用题库，开测时按维度等比例随机抽题。
+   这里校验"配额可满足性"——每档每侧面每极要抽的题数不能超过库存。 */
+const PER_DIM = { quick: 6, deep: 16 };
 const byDim = {};
 DIMS.forEach(d => {
   const items = QUESTIONS.filter(q => q.dim === d);
   const a = items.filter(q => q.dir < 0).length;
   const b = items.filter(q => q.dir > 0).length;
-  const quick = items.filter(q => q.quick);
-  const qa = quick.filter(q => q.dir < 0).length;
-  const qb = quick.filter(q => q.dir > 0).length;
   const facets = {};
   items.forEach(q => { facets[q.facet] = (facets[q.facet] || 0) + 1; });
-  byDim[d] = { items, a, b, quick: quick.length, qa, qb, facets };
+  byDim[d] = { items, a, b, facets };
   console.log('  ' + d + ': ' + items.length + ' 题 (' + d[0] + ' ' + a + ' : ' + d[1] + ' ' + b + ')' +
-    '   快速 ' + quick.length + ' (' + qa + ':' + qb + ')   侧面 ' + Object.keys(facets).length);
-  if (Math.abs(a - b) > 1) flag(d + ' 极性不配平: ' + a + ' vs ' + b);
-  if (quick.length % 2 !== 0) flag(d + ' 快速档题数为奇数，无法 1:1 配平');
-  if (Math.abs(qa - qb) > 1) flag(d + ' 快速档极性不配平: ' + qa + ' vs ' + qb);
+    '   侧面 ' + Object.keys(facets).length + ' 个');
+  if (a !== b) flag(d + ' 极性不配平: ' + a + ' vs ' + b);
+  if (a < PER_DIM.deep / 2 || b < PER_DIM.deep / 2) {
+    flag(d + ' 两极题量不足以支撑深度档 1:1 抽题（每极需 ≥ ' + PER_DIM.deep / 2 + '）');
+  }
+  /* 每个侧面每极的可抽题数：深度档按 5 侧面均分，最紧的侧面需要 ≥ 2 题/极 */
+  const facetNames = Object.keys(facets);
+  facetNames.forEach(f => {
+    const fa = items.filter(q => q.facet === f && q.dir < 0).length;
+    const fb = items.filter(q => q.facet === f && q.dir > 0).length;
+    const need = Math.ceil((PER_DIM.deep / 2) / facetNames.length);   // 8/5 → 2
+    if (fa < need || fb < need) {
+      flag(d + '/' + f + ' 侧面每极仅 ' + fa + '/' + fb + ' 题，深度档抽题可能填不满配额（需 ≥ ' + need + '）');
+    }
+  });
+  const missing = ANCHOR_MISSING(items);
+  if (missing.length) {
+    /* 场景具体化是"质量改进方向"，不是构建门槛：只做信息提示 */
+    console.log('    · 场景线索提示：' + missing.length + '/' + items.length + ' 题未命中场景词表（人工复核即可）');
+  }
 });
+console.log('  抽题配额：快速 ' + PER_DIM.quick + '/维 · 深度 ' + PER_DIM.deep + '/维（按侧面均分，两极 1:1）');
 const globalA = QUESTIONS.filter(q => q.dir < 0).length;
 console.log('  全局极性: 首字母极 ' + globalA + ' : 次字母极 ' + (QUESTIONS.length - globalA));
 
