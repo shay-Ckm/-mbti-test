@@ -237,9 +237,12 @@ function get(pathname) {
     await evalJs('return document.querySelector("#qDone").textContent'));
 
   /* ---------- 5. 中途刷新验证续答 ---------- */
-  await evalJs('localStorage.removeItem("mbti_set"); localStorage.removeItem("mbti_answers"); localStorage.removeItem("mbti_current"); return 1;');
-  await send('Page.reload', { ignoreCache: false });
-  await waitFor('document.querySelectorAll(".opt").length===5', 8000);
+  /* 注意：上一段答满 24 题后末次点击会触发交卷跳转，
+     这里必须等跳转落定再清存储，否则会和导航竞争拿到 null 元素 */
+  await waitFor('location.pathname.indexOf("result.html")>=0', 12000);
+  await evalJs('localStorage.removeItem("mbti_set"); localStorage.removeItem("mbti_answers"); localStorage.removeItem("mbti_current"); localStorage.removeItem("mbti_result"); return 1;');
+  await send('Page.navigate', { url: SITE.replace(/[^/]*$/, '') + 'test.html' });
+  await waitFor('document.querySelectorAll(".opt").length===5', 15000);
   await sleep(400);
   for (let i = 0; i < 3; i++) {
     await evalJs('document.querySelector(\'.opt[data-val="1"]\').click(); return 1;');
@@ -258,8 +261,8 @@ function get(pathname) {
 
   /* ---------- 6. 答完 → 结果页 ---------- */
   await evalJs('localStorage.removeItem("mbti_set"); localStorage.removeItem("mbti_answers"); localStorage.removeItem("mbti_current"); localStorage.removeItem("mbti_result"); return 1;');
-  await send('Page.reload', { ignoreCache: false });
-  await waitFor('document.querySelectorAll(".opt").length===5', 8000);
+  await send('Page.navigate', { url: SITE.replace(/[^/]*$/, '') + 'test.html' });
+  await waitFor('document.querySelectorAll(".opt").length===5', 15000);
   await sleep(400);
   for (let i = 0; i < 24; i++) {
     await evalJs('var o=document.querySelector(\'.opt[data-val="' + vals[i % vals.length] + '"]\'); if(o) o.click(); return 1;');
