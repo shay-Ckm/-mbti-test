@@ -716,7 +716,136 @@ img { max-width:100%; height:auto; }
 @keyframes riseOut { to { opacity:0; transform:translateY(-10px); } }
 
 /* ============================================================
-   14. 响应式
+   14. 玻璃主题（可选开关）
+   ------------------------------------------------------------
+   在 <body> 上加 class="theme-glass" 即把该页内容面切换为
+   「半透明玻璃 + 白色描边 + 背景模糊 + 深色面文字色阶」；
+   去掉这个类就回到纸面白卡，无需改动组件基础规则。
+   当前：答题页 test.html、结果页 result.html 已开启。
+   ============================================================ */
+body.theme-glass :is(
+  .desc-card, .gc-card, .fact-card, .trait-panel, .conf-panel, .easter-card,
+  .q-card, .radar-wrap, .live-panel, .jump-panel, .modal-card, .rel-stat, .rel-slot, .rel-side
+) {
+  background:rgba(255,255,255,.075);
+  border-color:rgba(255,255,255,.18);
+  box-shadow:0 26px 60px -34px rgba(0,0,0,.75);
+  color:rgba(255,255,255,.84);
+  backdrop-filter:blur(16px) saturate(130%);
+  -webkit-backdrop-filter:blur(16px) saturate(130%);
+}
+body.theme-glass :is(
+  .stress-item, .more-item, .cl-item, .cl-item-static, .hist-item, .rel-tabs, .q-num
+) {
+  background:rgba(255,255,255,.07);
+  border-color:rgba(255,255,255,.16);
+}
+/* 文字色阶 */
+body.theme-glass :is(
+  .desc-card h3, .gc-card h4, .conf-panel h4, .fact-card h3, .easter-card h2,
+  .trait-label, .conf-label, .lb-label, .live-letters, .q-text, .si-title, .mi-title, .opt
+) { color:#FFFFFF; }
+body.theme-glass :is(
+  .desc-text, .gc-text, .gc-list li, .cl-text, .rel-text, .easter-card p, .m-text,
+  .gc-bar-text, .conf-val, .lb-val, .opt.selected, .rel-tab.active
+) { color:rgba(255,255,255,.84); }
+body.theme-glass :is(
+  .gc-sub, .trait-pct, .cl-tip, .conf-note, .live-bubble, .jump-hint, .radar-hint,
+  .ed-val, .easter-hint, .radar-txt h3, .live-head h3, .jump-head span:first-child,
+  .cf-tag, .hist-delta, .hi-dim, .hi-val.right, .rel-tab, .opt-tag, .m-zh, .type-en
+) { color:rgba(255,255,255,.62); }
+body.theme-glass :is(.cl-item.done .cl-text) { color:rgba(255,255,255,.45); }
+/* 类型色胶囊：深色面上改用同色低透明底 + 白字（浅色 --tcolor-soft 只适合纸面） */
+body.theme-glass :is(
+  .gc-chip, .live-chip, .gc-num, .gc-quote, .trait-label b, .trait-pct b, .conf-letter,
+  .gc-bar-val, .cl-progress, .hist-type, .ed-label, .q-num, .rel-side b, .rel-stat b
+) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 48%, transparent);
+  color:#FFFFFF;
+}
+body.theme-glass :is(.gc-chip, .live-chip, .gc-quote, .q-num, .rel-side) {
+  border:1px solid color-mix(in srgb, var(--tcolor) 42%, transparent);
+}
+/* 轨道 / 勾选框 / 题号 / 选项卡 */
+body.theme-glass :is(.conf-track, .gc-bar, .rel-bar) { background:rgba(255,255,255,.14); }
+body.theme-glass :is(.lb-track, .trait-track) {
+  background:linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.10));
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.28);
+}
+body.theme-glass :is(.lb-mid) { background:rgba(255,255,255,.30); }
+body.theme-glass :is(.cl-box) { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.30); }
+body.theme-glass :is(.jump-dot) {
+  background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.16); color:rgba(255,255,255,.66);
+}
+body.theme-glass :is(.jump-dot.done) {
+  background:color-mix(in srgb, var(--tcolor) 30%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 55%, transparent); color:#FFFFFF;
+}
+/* 选项：凸起玻璃砖 */
+body.theme-glass :is(.opt) {
+  background:rgba(255,255,255,.13);
+  border-color:rgba(255,255,255,.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14);
+}
+body.theme-glass :is(.opt:hover) {
+  background:rgba(255,255,255,.20);
+  border-color:color-mix(in srgb, var(--tcolor) 65%, transparent);
+}
+body.theme-glass :is(.opt.selected) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:var(--tcolor);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--tcolor) 22%, transparent);
+}
+body.theme-glass :is(.opt-key) { background:rgba(255,255,255,.12); color:rgba(255,255,255,.72); }
+body.theme-glass :is(.opt.selected .opt-key) { background:var(--tcolor); color:#FFFFFF; }
+body.theme-glass :is(.opt.selected .opt-tag) { color:rgba(255,255,255,.86); }
+body.theme-glass :is(.opt-indicator) {
+  background:color-mix(in srgb, var(--tcolor) 26%, transparent);
+  border-color:var(--tcolor);
+}
+/* 分隔线与细节 */
+body.theme-glass :is(.live-foot) { border-top-color:rgba(255,255,255,.16); }
+body.theme-glass :is(.trait-row) { border-bottom-color:rgba(255,255,255,.14); }
+body.theme-glass :is(.cf-tag) { background:rgba(255,255,255,.10); }
+body.theme-glass :is(.trait-knob) { background:#FFFFFF; }
+body.theme-glass :is(.cl-item.done) {
+  background:color-mix(in srgb, var(--tcolor) 22%, transparent);
+  border-color:color-mix(in srgb, var(--tcolor) 50%, transparent);
+}
+body.theme-glass :is(.m-close) {
+  background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.20); color:#FFFFFF;
+}
+body.theme-glass :is(.ed-track) {
+  background:linear-gradient(90deg, color-mix(in srgb, var(--tcolor) 55%, transparent), rgba(255,255,255,.16) 50%, rgba(255,255,255,.24));
+}
+body.theme-glass :is(.ed-track i) { background:#FFFFFF; border-color:var(--tcolor); }
+body.theme-glass :is(.milestone) { color:#FFFFFF; }
+body.theme-glass :is(.conf-facets.ok .cf-txt) { color:#7DEBEB; }
+body.theme-glass :is(.conf-facets.soso .cf-txt) { color:#F5C06B; }
+body.theme-glass :is(.conf-facets.split .cf-txt, .cf-warn) { color:#FF9B9B; }
+body.theme-glass :is(.trait-amb) { color:#F5C06B; background:rgba(245,166,35,.18); }
+body.theme-glass :is(.golden) {
+  background:rgba(245,166,35,.14) !important; border-color:rgba(245,166,35,.55) !important;
+}
+body.theme-glass :is(.rel-tab.active) {
+  background:linear-gradient(135deg, var(--tcolor), var(--cyan-500)); color:#FFFFFF;
+}
+/* 次要按钮玻璃化：避免深色面上出现不透明白块 */
+body.theme-glass :is(.btn-ghost, .btn.ghost) {
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.22);
+  color:#FFFFFF;
+  backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+}
+body.theme-glass :is(.btn-ghost:hover, .btn.ghost:hover) {
+  background:rgba(255,255,255,.18);
+  border-color:rgba(255,255,255,.34);
+  box-shadow:0 14px 30px -16px rgba(0,0,0,.65);
+}
+
+/* ============================================================
+   15. 响应式
    ============================================================ */
 @media (max-width: 1080px) {
   .home-grid { grid-template-columns:minmax(0,1fr); gap:var(--sp-6); }
