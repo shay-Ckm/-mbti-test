@@ -35,7 +35,7 @@ var DEFAULT_MODE = 'deep';
 
 /* 构建版本（由 tools/bump-version.js 统一更新）
    用途：页脚/顶部展示，便于确认线上跑的是哪一版，排查缓存问题 */
-var BUILD = '5.0.0';
+var BUILD = '5.0.1';
 
 /* 把版本号写到页面的 .build-stamp 上，并挂到 window 便于排查 */
 function stampBuild() {
@@ -984,7 +984,7 @@ function bindTestEvents() {
     toast('已重新开始');
   });
 
-  // 键盘快捷键：1-4 选择选项，← / → 切题
+  // 键盘快捷键：1-5 选择选项（5 = 不确定），← / → 切题
   document.addEventListener('keydown', function (e) {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     if (e.key >= '1' && e.key <= String(SCALE.length)) {

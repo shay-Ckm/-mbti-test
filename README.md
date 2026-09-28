@@ -94,7 +94,7 @@
 - **抓取配置**：`robots.txt` + 20 个 URL 的 `sitemap.xml` + 自定义 404
 
 ### 交互与体验
-打字机开场 · 实时四维雷达图 · 选项滑片指示器 · **题号跳转网格** · **键盘快捷键（1-4 选答、←/→ 切题）** · 阶段里程碑提示 · 页面转场 · 光标辉光 · 噪点纹理 · 分享卡片 PNG · 原生分享（Web Share）· 移动优先响应式 · 尊重 `prefers-reduced-motion`
+打字机开场 · 实时四维雷达图 · 选项滑片指示器 · **题号跳转网格** · **键盘快捷键（1-5 选答、←/→ 切题）** · 阶段里程碑提示 · 页面转场 · 光标辉光 · 噪点纹理 · 分享卡片 PNG · 原生分享（Web Share）· 移动优先响应式 · 尊重 `prefers-reduced-motion`
 
 ## 🛠 技术栈
 
@@ -147,16 +147,27 @@ HTML5 + CSS3 + 原生 JavaScript（零框架、零构建、零 npm 依赖，双�
 
 ```bash
 npm test                     # 一键运行五套测试
-npm run test:static          # 静态契约：ID/类名/CSS/数据/传播/PWA/导出/无障碍/性能（206 项）
-npm run test:logic           # 逻辑：题库结构 / 双档位 / 计分 / 置信度 / 一致性 / 关系引擎（121 项）
-npm run test:psy             # 计分准确率仿真：恢复率 / α / 重测 / 响应定势（28 项）
-npm run test:smoke           # DOM 冒烟：页面初始化、关键交互、导出、打印、焦点管理（39 项）
-npm run test:sw              # Service Worker 行为：离线策略（18 项）
+npm run test:static          # 静态契约：ID/类名/CSS/数据/传播/PWA/导出/无障碍/性能（220 项）
+npm run test:logic           # 逻辑：题库结构 / 随机抽题 / 计分 / 置信度 / 一致性 / 关系引擎（156 项）
+npm run test:psy             # 计分准确率仿真：恢复率 / α / 重测 / 响应定势（31 项）
+npm run test:smoke           # DOM 冒烟：页面初始化、关键交互、导出、打印、焦点管理（55 项）
+npm run test:sw              # Service Worker 行为：离线策略（21 项）
 npm run audit:css            # 额外：扫描 style.css 中未被引用的类名（维护用）
 npm run audit:bank           # 额外：题库心理测量审计（结构/侧面/措辞/重复/镜像题）
+npm run build:bank           # 额外：从 _bank/*.json 校验并生成 data/questions.js
+npm run e2e                  # 真浏览器端到端（Chrome + CDP，默认打线上站点，38 项）
+npm run e2e -- ./index.html  # 同一套用例跑本地文件（file:// 模式会跳过线上抓取检查）
 ```
 
-当前共 **412 项断言全部通过**（输出以 `结果：N 通过，0 失败` 结尾）。
+当前共 **483 项断言全部通过**（输出以 `结果：N 通过，0 失败` 结尾）。
+
+### 真浏览器端到端（`npm run e2e`）
+上面五套是 Node 内的单元/契约测试；`npm run e2e` 用 **Chrome DevTools 协议**驱动真实浏览器真渲染跑一遍完整用户旅程：
+首页 → 切快速档 → 开始 → 逐题真实点击作答（含"不确定"）→ 中途刷新验证续答 → 提交 → 结果页 → 类型百科页。
+它会核对"UI 与引擎数据一致"（类型字母、特质百分比、置信度口径、`scored+neutral=answered`），
+并输出 `_shots/e2e-*.png` 截图与 `_shots/e2e-report.json` 报告。需要本机有 Chrome/Edge（或设置 `CHROME_PATH`）。
+
+> 本轮就是靠它在真实页面上发现并修掉了"键盘提示仍写 1-4"这类只有肉眼/真跑才暴露的问题。
 
 ### 准确率仿真（模型内，用于发现计分管线问题）
 `npm run test:psy` 用已知潜在偏好生成作答再交给真实计分函数，输出可复核的数字：

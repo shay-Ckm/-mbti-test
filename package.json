@@ -1,8 +1,8 @@
 {
   "name": "mbti-personality-test",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "private": true,
-  "description": "纯前端 MBTI 人格测试（双档位题库 24/64 题 · 侧面一致性与镜像题校验 · 完整测评报告）",
+  "description": "纯前端 MBTI 人格测试（200 题题库随机抽题 · 24/64 题双档位 · 侧面一致性与镜像题校验 · 完整测评报告）",
   "keywords": ["mbti", "personality-test", "vanilla-js", "static-site"],
   "license": "MIT",
   "scripts": {
@@ -21,7 +21,9 @@
     "push:check": "node tools/push-via-api.js --local-only",
     "audit:css": "node tools/audit-css.js",
     "audit:bank": "node tools/audit-bank.js",
-    "bump": "node tools/bump-version.js"
+    "build:bank": "node tools/build-bank.js",
+    "bump": "node tools/bump-version.js",
+    "e2e": "node tools/e2e-browser.js"
   },
   "engines": {
     "node": ">=16"

@@ -26,3 +26,7 @@ check-*.js
 # 临时诊断脚本
 _tmp_*.js
 _*.json
+
+# 端到端测试的截图与报告产物
+_shots/
+e2e-report.json

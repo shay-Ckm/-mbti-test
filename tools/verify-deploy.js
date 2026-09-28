@@ -166,7 +166,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ['result.html', '结果页', [['报告长图按钮', /reportImgBtn/], ['类型档案入口', /typePageLink/], ['打印按钮', /printBtn/]]],
     ['relation.html', '关系匹配页', [['矩阵容器', /id="relMatrix"/], ['选择槽', /relSlotA/]]],
     ['types/intj.html', '类型百科页', [['类型内容', /战略家/], ['结构化数据', /application\/ld\+json/]]],
-    ['sw.js', 'Service Worker', [['缓存版本 v5.0.0', /mbti-v5\.0\.0/]]],
+    ['sw.js', 'Service Worker', [['缓存版本 v5.0.1', /mbti-v5\.0\.1/]]],
     ['manifest.json', 'PWA manifest', [['名称字段', /"name"/], ['独立窗口', /standalone/]]]
   ];
   for (const [file, label, marks] of pages) {
